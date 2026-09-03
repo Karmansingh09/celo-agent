@@ -1,4 +1,5 @@
 import { celoSepoliaChain, celoMainnetChain } from '@/lib/celo/config';
+import BlockchainStatusCard from '@/components/BlockchainStatusCard';
 
 export default function Home() {
   return (
@@ -6,7 +7,7 @@ export default function Home() {
       {/* Hero Section */}
       <section className="text-center space-y-6 max-w-3xl mx-auto py-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full">
-          <span>Phase 1 Foundation Active</span>
+          <span>Phase 2 Blockchain Infrastructure Active</span>
         </div>
         <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">
           Decentralized <span className="text-emerald-400">AI-Agent Marketplace</span> on Celo
@@ -16,7 +17,12 @@ export default function Home() {
         </p>
       </section>
 
-      {/* Network Configuration Badge Card */}
+      {/* Phase 2 Blockchain Status Card */}
+      <section id="status">
+        <BlockchainStatusCard />
+      </section>
+
+      {/* Network Configuration Badge Cards */}
       <section id="overview" className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="p-6 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-4">
           <div className="flex items-center justify-between">

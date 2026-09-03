@@ -27,45 +27,75 @@ CeloAgent is a decentralized AI-Agent Marketplace built on the **Celo** blockcha
 
 ---
 
-## 🛠️ Stack & Architecture
+## 🛠️ Phase 2: Celo Blockchain Infrastructure
 
-- **Frontend**: Next.js 14+ (App Router), TypeScript, Tailwind CSS
-- **Blockchain Interface**: `viem` (Type-safe EVM interactions with custom Celo chain configs)
-- **AI Engine**: LLM Orchestrator with dynamic tool/function calling
-- **Wallet Architecture**: Backend-controlled agent wallet with spending policy limits
-- **Trust Standard**: ERC-8004 Agent Identity & Reputation standard
+Phase 2 establishes a type-safe, read-only blockchain layer and backend agent key security foundation under `src/lib/celo/`:
+
+- **Network Config (`config.ts`)**: Centralized definitions for Celo Sepolia (`11142220`) and Celo Mainnet (`42220`).
+- **Public Client (`public-client.ts`)**: `viem` `PublicClient` for read-only RPC queries and connectivity checks.
+- **Account Management (`account.ts`)**: Server-side agent key validation and address resolution using `AGENT_PRIVATE_KEY`. Protected with `server-only`.
+- **Wallet Client (`wallet-client.ts`)**: Server-side `WalletClient` instance for backend agent signing. Protected with `server-only`.
+- **Balance Service (`balance.ts`)**: Real-time native CELO balance queries from RPC via `getAgentBalance()`.
+- **Transaction Service (`transactions.ts`)**: Transaction detail retrieval (`getTransaction`) and confirmation wait infrastructure (`waitForTransaction`).
+- **Celo Health API (`/api/health/celo`)**: Endpoint returning network state, block height, RPC status, and agent wallet configuration.
+
+> [!IMPORTANT]
+> **Phase 2 Security & Boundary Policy**:
+> - Private keys MUST be configured using `AGENT_PRIVATE_KEY` in environment variables and are **never** exposed to browser bundles.
+> - Private-key and wallet signing modules enforce `import 'server-only'`.
+> - If `AGENT_PRIVATE_KEY` is omitted, the application seamlessly runs in read-only mode showing `"Agent wallet not configured"`.
+> - **Phase 2 DOES NOT execute or broadcast real transactions.**
 
 ---
 
-## 🚦 Getting Started
+## 🔐 Environment Setup & Agent Wallet Security
 
-### 1. Prerequisites
-- Node.js `^20.18.0` or higher
-- npm `^10.8.0` or higher
-
-### 2. Environment Setup
 Copy `.env.example` to `.env.local`:
 ```bash
 cp .env.example .env.local
 ```
 
-### 3. Install Dependencies
+Configure `.env.local`:
+```env
+CELO_NETWORK=sepolia
+CELO_SEPOLIA_RPC_URL=https://forno.celo-sepolia.celo-testnet.org
+AGENT_PRIVATE_KEY=0x... # (Optional: 64-hex char private key for testnet agent wallet)
+```
+
+> [!CAUTION]
+> Never commit `.env` or `.env.local` to Git repository control. Keep private keys strictly in server environment variables or KMS.
+
+---
+
+## 🚦 Running & Testing
+
+### 1. Install Dependencies
 ```bash
 npm install
 ```
 
-### 4. Development Server
+### 2. Run Test Suite
+```bash
+npm test
+```
+
+### 3. Start Development Server
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) to view the application.
+Open [http://localhost:3000](http://localhost:3000) to view the live Celo Blockchain Status component.
+
+### 4. Verify Celo Health Endpoint
+```bash
+curl http://localhost:3000/api/health/celo
+```
 
 ---
 
 ## 📅 Roadmap & Milestones
 
-- [x] **Phase 1**: Foundation, Next.js layout, Tailwind setup, Celo network configuration (`viem`).
-- [ ] **Phase 2**: Backend Agent Wallet & Database schema setup.
+- [x] **Phase 1**: Foundation, Next.js layout, Tailwind setup, Celo network configuration.
+- [x] **Phase 2**: Celo Blockchain Infrastructure, `viem` Clients, Server-Side Agent Wallet Abstraction, Balance & Health API.
 - [ ] **Phase 3**: AI Orchestrator Agent & tool calling infrastructure.
 - [ ] **Phase 4**: Marketplace UI catalog & User Payment Approval Modal.
 - [ ] **Phase 5**: End-to-end task execution & Celo Sepolia transaction integration.
