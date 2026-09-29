@@ -1,18 +1,80 @@
-# CeloAgent: Decentralized AI-Agent Marketplace on Celo
+# CeloAgent: Control Plane for Autonomous Agent Spending on Celo
 
-CeloAgent is a decentralized AI-Agent Marketplace built on the **Celo** blockchain. It enables a primary AI Orchestrator Agent to dynamically discover specialized sub-agents, verify their identity and reputation on-chain via the **ERC-8004** standard, request user payment authorization, execute real on-chain Celo Sepolia transactions via a backend-controlled agent wallet, trigger service completion, and record immutable reputation feedback.
+CeloAgent is a **spending dashboard and safety/control layer for AI agents that spend Celo stablecoins on behalf of users**. It gives users visibility, limits, approvals, and revocation over how autonomous AI agents use their funds.
 
 ---
 
-## 🌟 Core Flow Overview
+## 🌟 Product Vision & Core Positioning
 
-1. **User Task Input**: User submits a high-level task to the Main AI Orchestrator.
-2. **AI Discovery**: Main AI Agent discovers registered specialized sub-agents matching required capabilities.
-3. **Identity & Reputation Inspection**: Main AI Agent verifies the sub-agent's ERC-8004 identity card and on-chain trust score.
-4. **User Payment Authorization**: Frontend presents an interactive approval modal detailing service fee and Celo gas estimates.
-5. **On-Chain Settlement**: Backend agent wallet signs and broadcasts real Celo Sepolia transaction using `viem`.
-6. **Task Dispatch & Execution**: Authenticated service request dispatched to sub-agent endpoint upon transaction confirmation.
-7. **Reputation Recording**: On-chain rating and feedback recorded on the ERC-8004 Reputation Registry.
+As AI agents perform autonomous tasks (fetching data, purchasing compute, requesting translations, querying financial feeds), they require financial authority. Giving an agent unrestricted access to a wallet creates significant financial risks.
+
+CeloAgent sits between the AI agent and the payment rail:
+
+```text
+       USER (Defines Policy & Approves Exceptions)
+                        │
+                        ▼
+                 +--------------+
+                 |   AI AGENT   |
+                 +------+-------+
+                        │ Payment Request
+                        v
+              +-------------------+
+              |     CELOAGENT     |
+              |   CONTROL PLANE   |
+              +---------+---------+
+                        │
+         +--------------+--------------+
+         │                             │
+         v                             v
+  Policy / Budget Check           Approval Workflow
+         │                             │
+         v                             v
+  Controlled Payment             User Sign-off
+         │
+         v
+    Celo Settlement (cUSD / CELO)
+```
+
+### Core User Controls
+- **Spending Budgets**: Total and daily spending allocations per agent.
+- **Per-Transaction Limits**: Hard caps on single transaction amounts.
+- **Auto-Approval Thresholds**: Low-value transactions execute automatically; larger transactions trigger user sign-off.
+- **Authorized Recipients**: Explicit allowlists for approved recipient addresses and services.
+- **Expiration Controls**: Timed policy validity windows.
+- **Auditable Activity Log**: Human-readable reasons for every `ALLOW`, `REQUIRE_USER_APPROVAL`, or `DENY` decision.
+
+---
+
+## 🎯 Primary Focus & Ecosystem Alignment
+
+- **Primary Asset Focus**: Celo stablecoins (starting with **cUSD**).
+- **Target Ecosystem**: Celo Sepolia testnet initially, designed with MiniPay-oriented user flows in mind.
+- **Underlying Settlement Engine**: The existing `viem`-based Celo payment infrastructure (`src/lib/celo/`) serves as the execution rail under the control plane.
+
+---
+
+## 🚫 What CeloAgent Is NOT
+
+To maintain focus and avoid scope creep, CeloAgent is **NOT** currently:
+- A generic AI chatbot or LLM interface.
+- A general-purpose agent discovery or marketplace protocol.
+- A replacement for identity/reputation standards (such as ERC-8004).
+- A multi-chain wallet or cross-chain bridge.
+- A DAO, NFT, or governance token project.
+
+---
+
+## 🛡️ Security Model & Interim Policy Enforcement
+
+> [!IMPORTANT]
+> **Interim Policy Engine Notice**:
+> In the current MVP, spending policy evaluation is **server-enforced**. 
+> - The MVP policy engine is **not** cryptographically enforced on-chain.
+> - The MVP is **not** non-custodial or resistant to a fully compromised application backend.
+> - Private keys are protected server-side via `import 'server-only'` boundaries and environment variables (`AGENT_PRIVATE_KEY`), but full backend compromise could bypass server-level policies.
+> 
+> Future roadmap phases (Phase 7) include research into smart accounts, session keys, and delegated authorization (ERC-7715 patterns) to push policy enforcement directly to the Celo smart contract layer.
 
 ---
 
@@ -23,29 +85,9 @@ CeloAgent is a decentralized AI-Agent Marketplace built on the **Celo** blockcha
 | **Celo Sepolia Testnet** (Default) | `11142220` | `https://forno.celo-sepolia.celo-testnet.org` | [Blockscout](https://celo-sepolia.blockscout.com) |
 | **Celo Mainnet** | `42220` | `https://forno.celo.org` | [Celo Explorer](https://explorer.celo.org) |
 
-> **Note**: Chain ID `11142220` is configured as the active testnet chain for Celo Sepolia.
-
 ---
 
-## 💳 Phase 3: Secure Celo Payment Workflow
-
-Phase 3 introduces a secure, server-side Celo Sepolia native payment capability under `src/lib/celo/payment.ts`:
-
-- **Payment Validation (`payment.ts`)**: Strict EVM recipient address validation (`isAddress`) and positive non-zero CELO decimal parsing (`parseEther`).
-- **Spending Policy Guardrails**: Server-side spending limit policy via `CELO_MAX_PAYMENT` (default: `0.01 CELO`). Rejects any transaction above the configured maximum.
-- **Balance & Gas Pre-Check**: Checks agent account balance and calculates required gas buffer (`gasPrice * 21000`) before signing to prevent execution reverts.
-- **Server Execution (`executePayment`)**: Server-only module calling `walletClient.sendTransaction({ account, to, value })` and waiting for block receipt confirmation.
-- **Payment API (`POST /api/payments/send`)**: Accepts structured payment requests (`to`, `amountCelo`, `purpose`), enforces policy, executes the transaction, and returns structured result with Blockscout explorer link.
-- **Interactive UI (`PaymentDemoCard.tsx`)**: Polished client component with user confirmation review step, double-submission protection, status indicators, and explorer links.
-
-> [!WARNING]
-> **Real Testnet Transaction Notice**:
-> When `AGENT_PRIVATE_KEY` is configured in `.env.local` with testnet CELO, confirming a payment in the UI sends a **real native CELO transaction on Celo Sepolia (Chain ID: 11142220)**.
-> Mainnet payment execution is NOT enabled.
-
----
-
-## 🔐 Environment Setup & Agent Wallet Security
+## 🔐 Environment Setup & Security
 
 Copy `.env.example` to `.env.local`:
 ```bash
@@ -60,12 +102,6 @@ CELO_MAX_PAYMENT=0.01
 AGENT_PRIVATE_KEY=0x... # (Optional: 64-hex char private key for testnet agent wallet)
 ```
 
-### Obtaining Testnet CELO
-To test payments on Celo Sepolia:
-1. Copy the public address generated by your testnet agent wallet (shown in the UI status card or via `/api/health/celo`).
-2. Visit the official [Celo Faucet](https://faucet.celo.org/sepolia) or request testnet tokens for Celo Sepolia.
-3. Verify your agent balance updates in the UI.
-
 > [!CAUTION]
 > Never commit `.env` or `.env.local` to Git repository control. Keep private keys strictly in server environment variables or KMS.
 
@@ -78,7 +114,7 @@ To test payments on Celo Sepolia:
 npm install
 ```
 
-### 2. Run Phase 2 & Phase 3 Test Suites
+### 2. Run Test Suite
 ```bash
 npm test
 ```
@@ -87,9 +123,9 @@ npm test
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) to view the live Celo Status Card and Payment Demo Component.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-### 4. Verify Celo Health & Send Payment Endpoints
+### 4. Verify Celo Health & Payment Endpoints
 ```bash
 # Health check:
 curl http://localhost:3000/api/health/celo
@@ -102,11 +138,15 @@ curl -X POST http://localhost:3000/api/payments/send \
 
 ---
 
-## 📅 Roadmap & Milestones
+## 📅 Roadmap & Project Phases
 
 - [x] **Phase 1**: Foundation, Next.js layout, Tailwind setup, Celo network configuration.
 - [x] **Phase 2**: Celo Blockchain Infrastructure, `viem` Clients, Server-Side Agent Wallet Abstraction, Balance & Health API.
 - [x] **Phase 3**: Secure Celo Payment Workflow (`executePayment`, `CELO_MAX_PAYMENT`, `POST /api/payments/send`, `PaymentDemoCard`).
-- [ ] **Phase 4**: AI Orchestrator Agent & tool calling infrastructure.
-- [ ] **Phase 5**: Marketplace UI catalog & User Payment Approval Modal.
-- [ ] **Phase 6**: End-to-end task execution & ERC-8004 reputation recording.
+- [x] **Phase 3.5 & 4**: Master Specification, Product Repositioning & Scope Lock (`docs/CELOAGENT-MASTER-SPEC.md`).
+- [ ] **Phase 5**: Spending Policy v1 Engine (`maxPerTransaction`, `maxPerDay`, `allowedRecipients`, `autoApproveThreshold`, `validUntil`).
+- [ ] **Phase 6**: Concurrency Correctness & Atomic Budget Accounting.
+- [ ] **Phase 7**: On-Chain Enforcement Research (Smart Accounts / Session Keys).
+- [ ] **Phase 8**: Control Plane Dashboard UI.
+- [ ] **Phase 9**: Demo Service Agents (`DataAgent`, `TranslationAgent`, `ComputeAgent`).
+- [ ] **Phase 10**: Security Hardening & Complete Threat Audit.
