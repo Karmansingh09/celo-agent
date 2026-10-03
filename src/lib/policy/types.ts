@@ -36,6 +36,18 @@ export interface AgentSpendingPolicy {
 }
 
 /**
+ * Payment request submitted for policy evaluation.
+ */
+export interface PolicyPaymentRequest {
+  /** Unique identifier of the agent requesting the payment */
+  agentId: string;
+  /** Requested payment amount in cUSD (decimal string e.g., "0.03") */
+  amount: string;
+  /** Recipient EVM address (0x...) */
+  recipient: string;
+}
+
+/**
  * Structured evaluation result returned by the Policy Engine.
  */
 export interface PolicyEvaluationResult {
