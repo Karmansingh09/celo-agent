@@ -9,6 +9,8 @@ import {
   EnforcePaymentRequest,
   UserApproval,
   parseCusdToBaseUnits,
+  TrustedSettlementConfirmation,
+  BudgetReservation,
 } from '../policy';
 import {
   AgentPaymentRequest,
@@ -23,38 +25,55 @@ import {
   generatePaymentRequestId,
 } from './types';
 import { IPendingApprovalStore } from './pending-approval-store';
+import {
+  IPaymentExecutor,
+  ExecuteReservedPaymentParams,
+  ExecuteReservedPaymentResult,
+  AssetMismatchError,
+  InvalidReservationError,
+  ExecutionInProgressError,
+} from './execution-types';
+import { CeloPaymentExecutor } from './execution';
 
 /**
- * Phase 8.2: Agent Payment Orchestration Service
+ * Phase 8.2 / 8.3: Agent Payment Orchestration Service
  * 
  * Coordinates the application lifecycle between Agent identity/status,
- * Policy & Budget Enforcement, and Pending Human Approvals.
+ * Policy & Budget Enforcement, Pending Human Approvals, and the Controlled Execution Boundary.
  * 
  * CRITICAL ARCHITECTURAL CONSTRAINTS:
- * 1. Zero Blockchain Execution:
- *    - This service does NOT call Celo RPC, sign transactions, or execute on-chain transfers.
- *    - Execution remains strictly outside this phase.
+ * 1. Controlled Execution Boundary:
+ *    - All on-chain interactions go through `IPaymentExecutor`.
+ *    - Process-local concurrency guards prevent duplicate concurrent executions of the same reservation.
  * 2. Asset Integrity:
- *    - All amounts are handled strictly in cUSD decimal strings (`amountCusd`).
- *    - cUSD and native CELO are NOT converted or treated as equivalent.
+ *    - Policy and accounting domains operate strictly in cUSD decimal strings (`amountCusd`).
+ *    - Execution rails (such as native CELO) are distinct; cUSD and CELO are NOT converted or treated as 1:1.
  * 3. Server-Enforced Trust Boundary:
  *    - Identity derives exclusively from `authenticatedOwnerAddress`.
- *    - Spending limits and approval validations are server-enforced.
- * 4. Approval Re-Evaluation:
- *    - Approval-required requests do NOT reserve budget.
- *    - Upon owner approval, policy and daily budget are strictly re-evaluated at approval time.
+ *    - Spending limits, tenant isolation, and approval validations are server-enforced.
+ * 4. Submission vs. Settlement Separation:
+ *    - Network broadcast transitions reservation to `SUBMITTED`.
+ *    - Moving funds permanently into `COMMITTED` requires settlement confirmation.
  */
 export class AgentPaymentService {
   /** In-flight approval requests tracked to prevent concurrent race conditions (process-local) */
   private readonly inFlightApprovals: Set<string> = new Set();
+
+  /** In-flight execution attempts tracked to prevent duplicate execution attempts (process-local) */
+  private readonly inFlightExecutions: Set<string> = new Set();
+
+  private readonly paymentExecutor: IPaymentExecutor;
 
   constructor(
     private readonly agentService: AgentService,
     private readonly policyEnforcementService: PolicyEnforcementService,
     private readonly pendingApprovalStore: IPendingApprovalStore,
     private readonly clock: () => number = () => Date.now(),
-    private readonly approvalTtlMs: number = 86_400_000 // 24 hours default
-  ) {}
+    private readonly approvalTtlMs: number = 86_400_000, // 24 hours default
+    paymentExecutor?: IPaymentExecutor
+  ) {
+    this.paymentExecutor = paymentExecutor || new CeloPaymentExecutor();
+  }
 
   /**
    * Submits a payment request on behalf of an agent.
@@ -457,4 +476,281 @@ export class AgentPaymentService {
     const agent = await this.agentService.getAgentById(authenticatedOwnerAddress, agentId);
     return this.pendingApprovalStore.listByAgentId(agent.id, status);
   }
+
+  // ============================================================================
+  // PHASE 8.3: CONTROLLED PAYMENT EXECUTION BOUNDARY
+  // ============================================================================
+
+  /**
+   * Executes a previously reserved payment on the underlying Celo payment rail.
+   * 
+   * Strict Invariants & Guarantees:
+   * 1. Tenant & Agent Authorization:
+   *    - Authenticates that `authenticatedOwnerAddress` owns `agentId`.
+   *    - Ensures the agent is active (not PAUSED or TERMINATED).
+   * 2. Reservation Integrity:
+   *    - Loads the reservation by ID via `PolicyEnforcementService`.
+   *    - Validates that the reservation belongs to `agentId`.
+   *    - Validates that the reservation status is strictly `RESERVED`.
+   * 3. Asset Boundary & Conversion Safety:
+   *    - Explicitly checks that the execution asset is supported (`NATIVE_CELO`).
+   *    - Does NOT convert `amountCusd` -> `amountCelo` or treat them as 1:1.
+   *    - If an invalid or unconfigured asset is requested, throws `AssetMismatchError`.
+   * 4. In-Flight Execution Guard:
+   *    - Process-local concurrency lock prevents double-submission for the same reservation.
+   * 5. Submission vs. Settlement Separation:
+   *    - On successful broadcast (`status: 'SUBMITTED'`), calls `policyEnforcementService.markSubmitted(reservationId, txHash)`.
+   *    - Does NOT mark `COMMITTED` at submission time.
+   * 6. Failure & Reconciliation Safety:
+   *    - On deterministic/known pre-submission failure (`status: 'FAILED'`), calls `policyEnforcementService.failAndRelease(reservationId, error)`.
+   *    - On timeout/ambiguous failure (`status: 'UNCERTAIN'`), calls `policyEnforcementService.holdForReconciliation(reservationId, error)`
+   *      and retains encumbrance in `reservedWei` to prevent overspending.
+   */
+  public async executeReservedPayment(
+    authenticatedOwnerAddress: string,
+    params: ExecuteReservedPaymentParams
+  ): Promise<ExecuteReservedPaymentResult> {
+    if (!params || typeof params !== 'object') {
+      throw new InvalidPaymentInputError('Execution parameters must be a non-null object');
+    }
+
+    const { agentId, reservationId, asset, executionAmount, purpose } = params;
+
+    if (!agentId || typeof agentId !== 'string') {
+      throw new InvalidPaymentInputError('Agent ID is required');
+    }
+    if (!reservationId || typeof reservationId !== 'string') {
+      throw new InvalidPaymentInputError('Reservation ID is required');
+    }
+    if (!asset || typeof asset !== 'object') {
+      throw new InvalidPaymentInputError('Execution asset is required');
+    }
+    if (!executionAmount || typeof executionAmount !== 'string') {
+      throw new InvalidPaymentInputError('Execution amount is required');
+    }
+
+    // 1. Authenticate owner & Agent status
+    const agent = await this.agentService.getAgentById(authenticatedOwnerAddress, agentId);
+    if (agent.status === 'PAUSED') {
+      throw new AgentPausedError(agent.id);
+    }
+    if (agent.status === 'TERMINATED') {
+      throw new AgentTerminatedError(agent.id);
+    }
+
+    // 2. Fetch & Validate Reservation
+    const reservation = await this.policyEnforcementService.getReservationById(reservationId);
+    if (!reservation) {
+      throw new InvalidReservationError(reservationId, `Reservation ${reservationId} not found`);
+    }
+
+    if (reservation.agentId !== agent.id) {
+      throw new InvalidReservationError(
+        reservationId,
+        `Reservation ${reservationId} does not belong to agent ${agent.id}`
+      );
+    }
+
+    if (reservation.status !== 'RESERVED') {
+      throw new InvalidReservationError(
+        reservationId,
+        `Reservation ${reservationId} is not in RESERVED status (current status: ${reservation.status})`
+      );
+    }
+
+    // 3. Asset Integrity Verification
+    // The policy/budget accounting domain is denominated strictly in cUSD.
+    // The reservation authorizes a specific amount of cUSD (reservation.amountCusd).
+    // Native CELO is a separate asset with floating exchange rates; cUSD != CELO.
+    // In Phase 8.3, cross-asset execution between cUSD reservations and the native CELO rail
+    // is strictly prohibited because no legitimate conversion, oracle, or exchange rate exists.
+    if (asset.kind === 'NATIVE_CELO') {
+      throw new AssetMismatchError(
+        `Cannot execute cUSD reservation (${reservation.amountCusd} cUSD) via NATIVE_CELO rail: cross-asset execution is prohibited`
+      );
+    }
+
+    if (asset.kind !== 'CUSD_ERC20') {
+      throw new AssetMismatchError(
+        `Unsupported execution asset: ${asset.kind}. Reservations are denominated in cUSD.`
+      );
+    }
+
+    // Reject non-numeric or non-positive execution amounts
+    if (!/^\d+(\.\d+)?$/.test(executionAmount.trim())) {
+      throw new AssetMismatchError(
+        `Invalid execution amount format: "${executionAmount}". Must be a positive decimal string.`
+      );
+    }
+    const numAmount = Number(executionAmount.trim());
+    if (isNaN(numAmount) || !isFinite(numAmount) || numAmount <= 0) {
+      throw new AssetMismatchError(
+        `Execution amount must be greater than zero. Received: "${executionAmount}"`
+      );
+    }
+
+    // Verify execution amount matches the authorized reservation amount
+    // An arbitrary execution amount must not bypass the authorized cUSD reservation.
+    if (executionAmount.trim() !== reservation.amountCusd) {
+      throw new AssetMismatchError(
+        `Execution amount (${executionAmount.trim()} cUSD) does not match authorized reservation amount (${reservation.amountCusd} cUSD)`
+      );
+    }
+
+    // 4. In-flight Concurrency Guard
+    if (this.inFlightExecutions.has(reservationId)) {
+      throw new ExecutionInProgressError(reservationId);
+    }
+
+    this.inFlightExecutions.add(reservationId);
+
+    try {
+      // 5. Invoke IPaymentExecutor Boundary
+      const execResult = await this.paymentExecutor.execute({
+        reservationId,
+        agentId: agent.id,
+        recipient: reservation.recipient,
+        asset,
+        amount: executionAmount.trim(),
+        idempotencyKey: reservation.idempotencyKey,
+        purpose,
+      });
+
+      // 6. Handle Execution Outcomes
+      if (execResult.status === 'SUBMITTED' && execResult.txHash) {
+        // Broadcast succeeded: transition reservation to SUBMITTED
+        const updatedReservation = await this.policyEnforcementService.markSubmitted(
+          reservationId,
+          execResult.txHash
+        );
+
+        return {
+          success: true,
+          status: 'SUBMITTED',
+          txHash: execResult.txHash,
+          reservation: updatedReservation,
+          explorerUrl: execResult.explorerUrl,
+        };
+      } else if (execResult.status === 'UNCERTAIN') {
+        // Uncertain outcome (e.g., timeout): hold for reconciliation to keep funds encumbered
+        const updatedReservation = await this.policyEnforcementService.holdForReconciliation(
+          reservationId,
+          execResult.error || 'Execution status uncertain / network timeout'
+        );
+
+        return {
+          success: false,
+          status: 'UNCERTAIN',
+          txHash: execResult.txHash,
+          reservation: updatedReservation,
+          error: execResult.error,
+          explorerUrl: execResult.explorerUrl,
+        };
+      } else {
+        // Deterministic failure: release reservation back to available budget
+        const updatedReservation = await this.policyEnforcementService.failAndRelease(
+          reservationId,
+          execResult.error || 'Payment execution failed'
+        );
+
+        return {
+          success: false,
+          status: 'FAILED',
+          reservation: updatedReservation,
+          error: execResult.error || 'Payment execution failed',
+          explorerUrl: execResult.explorerUrl,
+        };
+      }
+    } catch (err: unknown) {
+      // If an unexpected error was thrown during executor invocation:
+      // If error message indicates timeout / network uncertainty, hold for reconciliation;
+      // otherwise fail and release.
+      const errMsg = err instanceof Error ? err.message : 'Unexpected execution exception';
+      const isUncertain =
+        errMsg.toLowerCase().includes('timeout') ||
+        errMsg.toLowerCase().includes('network') ||
+        errMsg.toLowerCase().includes('timed out');
+
+      if (isUncertain) {
+        const updatedReservation = await this.policyEnforcementService.holdForReconciliation(
+          reservationId,
+          errMsg
+        );
+        return {
+          success: false,
+          status: 'UNCERTAIN',
+          reservation: updatedReservation,
+          error: errMsg,
+        };
+      } else {
+        const updatedReservation = await this.policyEnforcementService.failAndRelease(
+          reservationId,
+          errMsg
+        );
+        return {
+          success: false,
+          status: 'FAILED',
+          reservation: updatedReservation,
+          error: errMsg,
+        };
+      }
+    } finally {
+      this.inFlightExecutions.delete(reservationId);
+    }
+  }
+
+  /**
+   * Confirms settlement of a submitted payment once receipt verification is established.
+   * Permanently transitions the reservation to COMMITTED state and moves funds into spentWei.
+   */
+  public async confirmPaymentSettlement(
+    authenticatedOwnerAddress: string,
+    agentId: string,
+    reservationId: string,
+    confirmation: TrustedSettlementConfirmation
+  ): Promise<BudgetReservation> {
+    const agent = await this.agentService.getAgentById(authenticatedOwnerAddress, agentId);
+
+    const reservation = await this.policyEnforcementService.getReservationById(reservationId);
+    if (!reservation) {
+      throw new InvalidReservationError(reservationId, `Reservation ${reservationId} not found`);
+    }
+
+    if (reservation.agentId !== agent.id) {
+      throw new InvalidReservationError(
+        reservationId,
+        `Reservation ${reservationId} does not belong to agent ${agent.id}`
+      );
+    }
+
+    return this.policyEnforcementService.confirmSettlement(reservationId, confirmation);
+  }
+
+  /**
+   * Holds an uncertain or timed-out payment reservation for manual/automated reconciliation.
+   * Preserves encumbrance in reservedWei to prevent double-spending.
+   */
+  public async holdPaymentForReconciliation(
+    authenticatedOwnerAddress: string,
+    agentId: string,
+    reservationId: string,
+    reason: string
+  ): Promise<BudgetReservation> {
+    const agent = await this.agentService.getAgentById(authenticatedOwnerAddress, agentId);
+
+    const reservation = await this.policyEnforcementService.getReservationById(reservationId);
+    if (!reservation) {
+      throw new InvalidReservationError(reservationId, `Reservation ${reservationId} not found`);
+    }
+
+    if (reservation.agentId !== agent.id) {
+      throw new InvalidReservationError(
+        reservationId,
+        `Reservation ${reservationId} does not belong to agent ${agent.id}`
+      );
+    }
+
+    return this.policyEnforcementService.holdForReconciliation(reservationId, reason);
+  }
 }
+

@@ -204,6 +204,11 @@ export interface IBudgetStore {
   holdForReconciliation(reservationId: string, reason: string): Promise<BudgetReservation>;
 
   /**
+   * Looks up an existing reservation by its unique reservation ID.
+   */
+  getReservationById(reservationId: string): Promise<BudgetReservation | null>;
+
+  /**
    * Looks up an existing reservation by agentId and idempotencyKey.
    * Idempotency keys are explicitly scoped per agent.
    */

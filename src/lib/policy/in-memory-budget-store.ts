@@ -497,6 +497,14 @@ export class InMemoryBudgetStore implements IBudgetStore {
   }
 
   /**
+   * Looks up an existing reservation by reservationId.
+   */
+  public async getReservationById(reservationId: string): Promise<BudgetReservation | null> {
+    const res = this.reservations.get(reservationId);
+    return res ? { ...res } : null;
+  }
+
+  /**
    * Looks up an existing reservation by agentId and idempotencyKey.
    */
   public async getReservationByIdempotencyKey(

@@ -514,6 +514,13 @@ export class PolicyEnforcementService {
   }
 
   /**
+   * Retrieves an existing reservation record by its unique reservation ID.
+   */
+  public async getReservationById(reservationId: string): Promise<BudgetReservation | null> {
+    return this.budgetStore.getReservationById(reservationId);
+  }
+
+  /**
    * Retrieves the current budget state snapshot for an agent in a specific UTC window.
    */
   public async getBudgetState(
