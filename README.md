@@ -125,15 +125,14 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-### 4. Verify Celo Health & Payment Endpoints
+### 4. Verify Celo Health & Agent Payment Endpoints
 ```bash
 # Health check:
 curl http://localhost:3000/api/health/celo
 
-# Send payment (requires configured AGENT_PRIVATE_KEY with testnet CELO):
-curl -X POST http://localhost:3000/api/payments/send \
-  -H "Content-Type: application/json" \
-  -d '{"to": "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A", "amountCelo": "0.005", "purpose": "API test"}'
+# Note: The legacy endpoint POST /api/payments/send is deprecated (returns HTTP 410 Gone).
+# Controlled agent payments are authorized via authenticated SIWE sessions:
+# POST /api/agents/{agentId}/payments
 ```
 
 ---
@@ -142,7 +141,7 @@ curl -X POST http://localhost:3000/api/payments/send \
 
 - [x] **Phase 1**: Foundation, Next.js layout, Tailwind setup, Celo network configuration.
 - [x] **Phase 2**: Celo Blockchain Infrastructure, `viem` Clients, Server-Side Agent Wallet Abstraction, Balance & Health API.
-- [x] **Phase 3**: Secure Celo Payment Workflow (`executePayment`, `CELO_MAX_PAYMENT`, `POST /api/payments/send`, `PaymentDemoCard`).
+- [x] **Phase 3**: Celo Payment Rail (`executePayment`, `CELO_MAX_PAYMENT`, `PaymentDemoCard`).
 - [x] **Phase 3.5 & 4**: Master Specification, Product Repositioning & Scope Lock (`docs/CELOAGENT-MASTER-SPEC.md`).
 - [ ] **Phase 5**: Spending Policy v1 Engine (`maxPerTransaction`, `maxPerDay`, `allowedRecipients`, `autoApproveThreshold`, `validUntil`).
 - [ ] **Phase 6**: Concurrency Correctness & Atomic Budget Accounting.

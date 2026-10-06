@@ -1,6 +1,5 @@
 import { celoSepoliaChain, celoMainnetChain } from '@/lib/celo/config';
 import BlockchainStatusCard from '@/components/BlockchainStatusCard';
-import PaymentDemoCard from '@/components/PaymentDemoCard';
 
 export default function Home() {
   return (
@@ -21,11 +20,6 @@ export default function Home() {
       {/* Phase 2 Blockchain Status Card */}
       <section id="status">
         <BlockchainStatusCard />
-      </section>
-
-      {/* Phase 3 Interactive Payment Demo Card */}
-      <section id="payment">
-        <PaymentDemoCard />
       </section>
 
       {/* Network Configuration Badge Cards */}
