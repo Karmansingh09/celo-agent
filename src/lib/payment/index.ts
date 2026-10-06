@@ -3,4 +3,6 @@ export * from './pending-approval-store';
 export * from './execution-types';
 export * from './execution';
 export * from './service';
+export * from './instance';
+export * from './api-serialization';
 
