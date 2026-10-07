@@ -9,7 +9,7 @@ import WalletStatus from './WalletStatus';
 const NAV_ITEMS = [
   { label: 'Overview', href: '/dashboard', status: 'active' },
   { label: 'Agents', href: '/dashboard/agents', status: 'active' },
-  { label: 'Approvals', href: '/dashboard/approvals', status: 'upcoming' },
+  { label: 'Approvals', href: '/dashboard/approvals', status: 'active' },
   { label: 'Activity', href: '/dashboard/activity', status: 'upcoming' },
 ];
 
