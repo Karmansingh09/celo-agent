@@ -8,6 +8,7 @@ import { Agent } from '@/lib/agent/types';
 import AgentIdentity from '@/components/dashboard/AgentIdentity';
 import AgentPolicyCard from '@/components/dashboard/AgentPolicyCard';
 import LifecycleModal, { LifecycleActionType } from '@/components/dashboard/LifecycleModal';
+import SpendingRequestDrawer from '@/components/dashboard/SpendingRequestDrawer';
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -30,6 +31,7 @@ export default function AgentDetailPage() {
     actionType: null,
   });
 
+  const [isSpendingDrawerOpen, setIsSpendingDrawerOpen] = useState<boolean>(false);
   const [isActionExecuting, setIsActionExecuting] = useState<boolean>(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -350,6 +352,13 @@ export default function AgentDetailPage() {
             <>
               <button
                 type="button"
+                onClick={() => setIsSpendingDrawerOpen(true)}
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm"
+              >
+                Request spending
+              </button>
+              <button
+                type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('pause')}
                 className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition-colors disabled:opacity-50"
@@ -369,6 +378,12 @@ export default function AgentDetailPage() {
 
           {agent.status === 'PAUSED' && (
             <>
+              <span
+                className="text-[11px] font-mono text-amber-400 bg-amber-950/60 border border-amber-900/60 px-2.5 py-1 rounded"
+                title="Spending requests are blocked while agent is paused"
+              >
+                Spending paused
+              </span>
               <button
                 type="button"
                 disabled={isActionExecuting}
@@ -457,30 +472,49 @@ export default function AgentDetailPage() {
               {/* Lifecycle Actions */}
               <div className="pt-2 space-y-2">
                 {agent.status === 'ACTIVE' && (
-                  <button
-                    type="button"
-                    disabled={isActionExecuting}
-                    onClick={() => handleOpenLifecycleModal('pause')}
-                    className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition-colors disabled:opacity-50 text-center"
-                  >
-                    Pause Agent
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsSpendingDrawerOpen(true)}
+                      className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm text-center mb-1"
+                    >
+                      Request spending
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isActionExecuting}
+                      onClick={() => handleOpenLifecycleModal('pause')}
+                      className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition-colors disabled:opacity-50 text-center"
+                    >
+                      Pause Agent
+                    </button>
+                  </>
                 )}
 
                 {agent.status === 'PAUSED' && (
-                  <button
-                    type="button"
-                    disabled={isActionExecuting}
-                    onClick={() => handleOpenLifecycleModal('resume')}
-                    className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 transition-colors disabled:opacity-50 text-center"
-                  >
-                    Resume Agent
-                  </button>
+                  <>
+                    <p className="text-[11px] text-amber-400/90 italic pb-1">
+                      Spending requests are unavailable while this agent is paused.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={isActionExecuting}
+                      onClick={() => handleOpenLifecycleModal('resume')}
+                      className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 transition-colors disabled:opacity-50 text-center"
+                    >
+                      Resume Agent
+                    </button>
+                  </>
                 )}
 
                 {agent.status === 'TERMINATED' && (
-                  <div className="text-center py-2 text-xs font-mono text-slate-500 italic bg-slate-900/60 rounded border border-slate-800">
-                    Agent terminated permanently
+                  <div className="space-y-1">
+                    <p className="text-[11px] text-rose-400/90 italic pb-1">
+                      This agent has been terminated and cannot submit new spending requests.
+                    </p>
+                    <div className="text-center py-2 text-xs font-mono text-slate-500 italic bg-slate-900/60 rounded border border-slate-800">
+                      Agent terminated permanently
+                    </div>
                   </div>
                 )}
               </div>
@@ -531,6 +565,14 @@ export default function AgentDetailPage() {
         agent={agent}
         onClose={handleCloseLifecycleModal}
         onConfirm={handleExecuteLifecycleAction}
+      />
+
+      {/* Controlled Spending Request Drawer */}
+      <SpendingRequestDrawer
+        isOpen={isSpendingDrawerOpen}
+        agent={agent}
+        onClose={() => setIsSpendingDrawerOpen(false)}
+        onRequestSubmitted={() => fetchAgent()}
       />
     </div>
   );
