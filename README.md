@@ -137,6 +137,15 @@ curl http://localhost:3000/api/health/celo
 
 ---
 
+## 🚧 Development Status
+
+CeloAgent is currently in active MVP development:
+- **Architecture & Scaffolding**: Master specifications, SIWE-based control plane routing, and Celo health monitoring are established.
+- **Payment Execution**: Payment execution is **not yet a completed cUSD transfer flow**. The current testnet execution rail performs baseline native CELO transfers on Celo Sepolia; full cUSD ERC-20 transfer integration and settlement remain in progress.
+- **Roadmap Progress**: Baseline blockchain infrastructure and payment prototypes are complete (Phases 1–4), with comprehensive policy engine rules and dashboard UI controls underway.
+
+---
+
 ## 📅 Roadmap & Project Phases
 
 - [x] **Phase 1**: Foundation, Next.js layout, Tailwind setup, Celo network configuration.
