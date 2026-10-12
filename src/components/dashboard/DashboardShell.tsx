@@ -29,19 +29,19 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   if (!authenticated) {
     return (
-      <div className="max-w-md mx-auto my-16 p-8 rounded-2xl bg-slate-800/80 border border-slate-700/80 shadow-2xl text-center space-y-6">
-        <div className="w-12 h-12 mx-auto rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xl font-bold">
+      <div className="max-w-md mx-auto my-16 p-8 rounded-2xl glass-panel-elevated text-center space-y-6">
+        <div className="w-12 h-12 mx-auto rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-300 text-xl font-bold shadow-[0_0_16px_-4px_rgba(134,227,176,0.3)]">
           🔒
         </div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-extrabold text-white">Authentication Required</h2>
-          <p className="text-sm text-slate-300">
+          <h2 className="text-2xl font-extrabold text-white tracking-tight">Authentication Required</h2>
+          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
             Sign in with your Celo wallet using SIWE (Sign-In with Ethereum) to access the agent control plane.
           </p>
         </div>
 
         {error && (
-          <div className="p-3 text-xs rounded-lg bg-rose-950/80 border border-rose-800 text-rose-300 text-left">
+          <div className="p-3 text-xs rounded-lg bg-rose-950/70 border border-rose-800/80 text-rose-300 text-left">
             ⚠️ {error}
           </div>
         )}
@@ -50,7 +50,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <button
             onClick={signIn}
             disabled={isConnecting || isSigning}
-            className="w-full py-2.5 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-sm transition-colors shadow flex items-center justify-center gap-2"
+            className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-xs transition-all shadow-[0_4px_16px_-4px_rgba(134,227,176,0.3)] flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           >
             {(isConnecting || isSigning) && (
               <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -77,11 +77,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   return (
     <div className="space-y-8">
       {/* Dashboard Top Header & Navigation Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[rgba(180,205,220,0.12)]">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-white tracking-tight">Control Plane</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-[0_0_10px_-2px_rgba(134,227,176,0.2)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Authenticated
             </span>
           </div>
@@ -94,7 +95,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <WalletStatus />
           <button
             onClick={logout}
-            className="py-1.5 px-3 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="py-1.5 px-3 rounded-lg text-xs font-medium text-slate-300 bg-[rgba(20,29,42,0.6)] hover:bg-[rgba(30,43,59,0.8)] border border-[rgba(180,205,220,0.14)] hover:text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 shadow-sm"
           >
             Sign Out
           </button>
@@ -104,7 +105,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       {/* Primary Sub-Navigation Bar */}
       <nav
         aria-label="Dashboard navigation"
-        className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800/60 text-xs font-medium"
+        className="flex items-center gap-1.5 overflow-x-auto p-1.5 rounded-xl bg-[rgba(15,22,33,0.65)] border border-[rgba(180,205,220,0.1)] backdrop-blur-md text-xs font-medium"
       >
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
@@ -114,10 +115,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3.5 py-2 rounded-lg flex items-center gap-2 transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+              className={`px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition-all whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                 isActive
-                  ? 'bg-slate-800 text-emerald-400 border border-slate-700 font-semibold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                  ? 'bg-[rgba(30,43,59,0.85)] text-emerald-300 border border-emerald-500/35 font-semibold shadow-[0_2px_8px_-2px_rgba(0,0,0,0.5),inset_0_1px_0_0_rgba(255,255,255,0.08)]'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[rgba(20,29,42,0.5)] border border-transparent'
               }`}
             >
               <span>{item.label}</span>

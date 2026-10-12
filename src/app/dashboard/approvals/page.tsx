@@ -235,11 +235,11 @@ export default function ApprovalsPage() {
   return (
     <div className="space-y-8">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.08]">
         <div className="space-y-1">
           <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
             <span>Spending Approvals</span>
-            <span className="px-2 py-0.5 text-xs font-mono font-medium rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+            <span className="px-2 py-0.5 text-xs font-mono font-medium rounded-full bg-slate-900/60 text-slate-400 border border-white/[0.08]">
               {queueItems.length} pending
             </span>
           </h2>
@@ -252,7 +252,7 @@ export default function ApprovalsPage() {
           type="button"
           onClick={() => fetchApprovals()}
           disabled={isLoading || isSubmittingAction}
-          className="px-3.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors disabled:opacity-50 self-start sm:self-auto flex items-center gap-1.5"
+          className="glass-panel px-3.5 py-1.5 rounded-lg text-slate-300 hover:text-white text-xs font-medium transition-all disabled:opacity-50 self-start sm:self-auto flex items-center gap-1.5"
           title="Refresh approval queue"
         >
           <span className={isLoading ? 'animate-spin' : ''}>↻</span>
@@ -262,7 +262,7 @@ export default function ApprovalsPage() {
 
       {/* Action Banners */}
       {actionSuccess && (
-        <div className="p-3 text-xs rounded-xl bg-emerald-950/80 border border-emerald-800 text-emerald-300 flex items-center justify-between">
+        <div className="glass-panel p-3 text-xs rounded-xl border-emerald-500/30 bg-emerald-950/20 text-emerald-300 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span>✓</span>
             <span>{actionSuccess}</span>
@@ -278,7 +278,7 @@ export default function ApprovalsPage() {
       )}
 
       {actionError && (
-        <div className="p-3 text-xs rounded-xl bg-rose-950/80 border border-rose-800 text-rose-300 flex items-center justify-between">
+        <div className="glass-panel p-3 text-xs rounded-xl border-rose-500/30 bg-rose-950/20 text-rose-300 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span>⚠️</span>
             <span>{actionError}</span>
@@ -296,11 +296,11 @@ export default function ApprovalsPage() {
       {/* Summary Metrics Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Pending Requests */}
-        <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700/80 space-y-1">
+        <div className="glass-panel p-4 rounded-xl space-y-1">
           <div className="text-[11px] font-mono text-amber-400 uppercase tracking-wider">
             Pending Decisions
           </div>
-          <div className="text-2xl font-bold font-mono text-white">
+          <div className="text-2xl font-bold font-mono tabular-nums text-white">
             {queueItems.length}
           </div>
           <p className="text-[11px] text-slate-400">
@@ -309,11 +309,11 @@ export default function ApprovalsPage() {
         </div>
 
         {/* Monitored Agents */}
-        <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700/80 space-y-1">
+        <div className="glass-panel p-4 rounded-xl space-y-1">
           <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
             Configured Agents
           </div>
-          <div className="text-2xl font-bold font-mono text-white">
+          <div className="text-2xl font-bold font-mono tabular-nums text-white">
             {agentsCount}
           </div>
           <p className="text-[11px] text-slate-400">
@@ -322,7 +322,7 @@ export default function ApprovalsPage() {
         </div>
 
         {/* Settlement Notice */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-1">
+        <div className="glass-panel p-4 rounded-xl space-y-1">
           <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
             Governance Boundary
           </div>
@@ -334,7 +334,7 @@ export default function ApprovalsPage() {
 
       {/* Error Alert */}
       {error && (
-        <div className="p-4 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-300 text-xs flex items-center justify-between gap-4">
+        <div className="glass-panel p-4 rounded-xl border-rose-500/30 bg-rose-950/20 text-rose-300 text-xs flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span>⚠️</span>
             <span>{error}</span>
@@ -342,7 +342,7 @@ export default function ApprovalsPage() {
           <button
             type="button"
             onClick={() => fetchApprovals()}
-            className="px-2.5 py-1 rounded bg-rose-900/80 hover:bg-rose-800 text-white font-medium transition-colors"
+            className="px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-medium transition-colors"
           >
             Retry
           </button>
@@ -355,23 +355,23 @@ export default function ApprovalsPage() {
           {[1, 2].map((n) => (
             <div
               key={n}
-              className="p-6 rounded-2xl bg-slate-800/40 border border-slate-700/40 animate-pulse space-y-4"
+              className="glass-panel p-6 rounded-2xl animate-pulse space-y-4"
             >
               <div className="flex justify-between items-center">
-                <div className="h-5 bg-slate-700 rounded w-1/3" />
-                <div className="h-5 bg-slate-700 rounded w-24" />
+                <div className="h-5 bg-white/[0.06] rounded w-1/3" />
+                <div className="h-5 bg-white/[0.06] rounded w-24" />
               </div>
               <div className="h-10 bg-slate-900/60 rounded" />
               <div className="grid grid-cols-2 gap-3">
-                <div className="h-8 bg-slate-700/60 rounded" />
-                <div className="h-8 bg-slate-700/60 rounded" />
+                <div className="h-8 bg-white/[0.04] rounded" />
+                <div className="h-8 bg-white/[0.04] rounded" />
               </div>
             </div>
           ))}
         </div>
       ) : queueItems.length === 0 ? (
         /* Empty State */
-        <div className="p-12 text-center rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-4">
+        <div className="glass-panel p-12 text-center rounded-2xl space-y-4">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-3xl">
             ✓
           </div>
@@ -384,7 +384,7 @@ export default function ApprovalsPage() {
           <div className="pt-2 flex justify-center gap-3">
             <Link
               href="/dashboard/agents"
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+              className="px-4 py-2 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-200 text-xs font-semibold border border-white/[0.08] transition-colors"
             >
               View Agents
             </Link>

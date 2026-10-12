@@ -149,7 +149,7 @@ export default function AgentsPage() {
         <button
           type="button"
           onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shadow-sm inline-flex items-center gap-2 shrink-0 self-start sm:self-auto"
+          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-[0_4px_16px_-4px_rgba(134,227,176,0.3)] inline-flex items-center gap-2 shrink-0 self-start sm:self-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
         >
           <span>＋</span>
           <span>Create Agent</span>
@@ -160,56 +160,56 @@ export default function AgentsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div
           onClick={() => setActiveFilter('ALL')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
+          className={`p-4 rounded-2xl glass-panel glass-card-interactive cursor-pointer transition-all ${
             activeFilter === 'ALL'
-              ? 'bg-slate-800/90 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/20'
-              : 'bg-slate-800/50 border-slate-700/60 hover:border-slate-600'
+              ? 'border-emerald-500/40 shadow-[0_0_16px_-4px_rgba(134,227,176,0.25)] ring-1 ring-emerald-500/30'
+              : 'hover:border-[rgba(180,205,220,0.2)]'
           }`}
         >
           <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">Total Agents</div>
-          <div className="text-2xl font-bold text-white mt-1">{totalCount}</div>
+          <div className="text-2xl font-bold text-white mt-1 tabular-nums">{totalCount}</div>
         </div>
 
         <div
           onClick={() => setActiveFilter('ACTIVE')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
+          className={`p-4 rounded-2xl glass-panel glass-card-interactive cursor-pointer transition-all ${
             activeFilter === 'ACTIVE'
-              ? 'bg-emerald-950/40 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/20'
-              : 'bg-slate-800/50 border-slate-700/60 hover:border-slate-600'
+              ? 'border-emerald-500/40 shadow-[0_0_16px_-4px_rgba(134,227,176,0.25)] ring-1 ring-emerald-500/30'
+              : 'hover:border-[rgba(180,205,220,0.2)]'
           }`}
         >
           <div className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider">Active</div>
-          <div className="text-2xl font-bold text-emerald-300 mt-1">{activeCount}</div>
+          <div className="text-2xl font-bold text-emerald-300 mt-1 tabular-nums">{activeCount}</div>
         </div>
 
         <div
           onClick={() => setActiveFilter('PAUSED')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
+          className={`p-4 rounded-2xl glass-panel glass-card-interactive cursor-pointer transition-all ${
             activeFilter === 'PAUSED'
-              ? 'bg-amber-950/40 border-amber-500/50 shadow-md ring-1 ring-amber-500/20'
-              : 'bg-slate-800/50 border-slate-700/60 hover:border-slate-600'
+              ? 'border-amber-500/40 shadow-[0_0_16px_-4px_rgba(241,194,125,0.25)] ring-1 ring-amber-500/30'
+              : 'hover:border-[rgba(180,205,220,0.2)]'
           }`}
         >
           <div className="text-[11px] font-mono text-amber-400 uppercase tracking-wider">Paused</div>
-          <div className="text-2xl font-bold text-amber-300 mt-1">{pausedCount}</div>
+          <div className="text-2xl font-bold text-amber-300 mt-1 tabular-nums">{pausedCount}</div>
         </div>
 
         <div
           onClick={() => setActiveFilter('TERMINATED')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
+          className={`p-4 rounded-2xl glass-panel glass-card-interactive cursor-pointer transition-all ${
             activeFilter === 'TERMINATED'
-              ? 'bg-rose-950/40 border-rose-500/50 shadow-md ring-1 ring-rose-500/20'
-              : 'bg-slate-800/50 border-slate-700/60 hover:border-slate-600'
+              ? 'border-rose-500/40 shadow-[0_0_16px_-4px_rgba(242,139,130,0.25)] ring-1 ring-rose-500/30'
+              : 'hover:border-[rgba(180,205,220,0.2)]'
           }`}
         >
           <div className="text-[11px] font-mono text-rose-400 uppercase tracking-wider">Terminated</div>
-          <div className="text-2xl font-bold text-rose-300 mt-1">{terminatedCount}</div>
+          <div className="text-2xl font-bold text-rose-300 mt-1 tabular-nums">{terminatedCount}</div>
         </div>
       </div>
 
       {/* Filter Tabs & Search / Refresh Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-900/60 border border-slate-800 self-start">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[rgba(15,22,33,0.65)] border border-[rgba(180,205,220,0.1)] backdrop-blur-md self-start">
           {(
             [
               { key: 'ALL', label: 'All', count: totalCount },
@@ -222,17 +222,17 @@ export default function AgentsPage() {
               key={tab.key}
               type="button"
               onClick={() => setActiveFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
                 activeFilter === tab.key
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-[rgba(30,43,59,0.85)] text-emerald-300 border border-emerald-500/35 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[rgba(20,29,42,0.5)] border border-transparent'
               }`}
             >
               <span>{tab.label}</span>
               <span
-                className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full tabular-nums ${
                   activeFilter === tab.key
-                    ? 'bg-slate-700 text-white'
+                    ? 'bg-emerald-500/20 text-emerald-300'
                     : 'bg-slate-800 text-slate-400'
                 }`}
               >
@@ -246,7 +246,7 @@ export default function AgentsPage() {
           type="button"
           onClick={() => fetchAgents()}
           disabled={isLoading}
-          className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors disabled:opacity-50 self-end sm:self-auto flex items-center gap-1.5"
+          className="px-3 py-1.5 rounded-xl border border-[rgba(180,205,220,0.14)] bg-[rgba(20,29,42,0.6)] hover:bg-[rgba(30,43,59,0.8)] text-slate-300 text-xs font-medium transition-all disabled:opacity-50 self-end sm:self-auto flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 shadow-sm"
           title="Refresh list"
         >
           <span className={isLoading ? 'animate-spin' : ''}>↻</span>
@@ -256,7 +256,7 @@ export default function AgentsPage() {
 
       {/* Error Alert */}
       {error && (
-        <div className="p-4 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-300 text-xs flex items-center justify-between gap-4">
+        <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-xs flex items-center justify-between gap-4 glass-panel">
           <div className="flex items-center gap-2">
             <span>⚠️</span>
             <span>{error}</span>
@@ -264,7 +264,7 @@ export default function AgentsPage() {
           <button
             type="button"
             onClick={() => fetchAgents()}
-            className="px-2.5 py-1 rounded bg-rose-900/80 hover:bg-rose-800 text-white font-medium transition-colors"
+            className="px-3 py-1 rounded-lg bg-rose-900/60 hover:bg-rose-800 border border-rose-700 text-white font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
           >
             Retry
           </button>
@@ -277,30 +277,30 @@ export default function AgentsPage() {
           {[1, 2, 3].map((n) => (
             <div
               key={n}
-              className="p-6 rounded-xl bg-slate-800/40 border border-slate-700/40 animate-pulse space-y-4"
+              className="p-6 rounded-2xl glass-panel animate-pulse space-y-4"
             >
               <div className="flex justify-between items-center">
-                <div className="h-4 bg-slate-700 rounded w-1/2" />
-                <div className="h-4 bg-slate-700 rounded w-16" />
+                <div className="h-4 bg-slate-800/80 rounded w-1/2" />
+                <div className="h-4 bg-slate-800/80 rounded w-16" />
               </div>
-              <div className="h-3 bg-slate-700/60 rounded w-3/4" />
+              <div className="h-3 bg-slate-800/60 rounded w-3/4" />
               <div className="h-8 bg-slate-900/60 rounded" />
               <div className="space-y-2 pt-2">
-                <div className="h-3 bg-slate-700/60 rounded" />
-                <div className="h-3 bg-slate-700/60 rounded" />
+                <div className="h-3 bg-slate-800/60 rounded" />
+                <div className="h-3 bg-slate-800/60 rounded" />
               </div>
             </div>
           ))}
         </div>
       ) : agents.length === 0 ? (
         /* Zero Agents Empty State */
-        <div className="p-12 text-center rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-4">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-3xl">
+        <div className="p-12 text-center rounded-2xl glass-panel space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-3xl shadow-[0_0_20px_-4px_rgba(134,227,176,0.25)]">
             🤖
           </div>
           <div className="space-y-1">
-            <h3 className="text-base font-bold text-white">No agents provisioned yet</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            <h3 className="text-base font-bold text-white tracking-tight">No agents provisioned yet</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
               Create your first autonomous spending agent to establish policy limits, auto-approval thresholds, and daily budgets.
             </p>
           </div>
@@ -308,7 +308,7 @@ export default function AgentsPage() {
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(true)}
-              className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition-colors"
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-[0_4px_16px_-4px_rgba(134,227,176,0.3)] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
             >
               ＋ Provision First Agent
             </button>
@@ -316,14 +316,14 @@ export default function AgentsPage() {
         </div>
       ) : filteredAgents.length === 0 ? (
         /* Filter Empty State */
-        <div className="p-10 text-center rounded-2xl bg-slate-800/30 border border-slate-700/50 space-y-3">
+        <div className="p-10 text-center rounded-2xl glass-panel space-y-3">
           <p className="text-xs text-slate-400">
             No agents found with status <span className="font-semibold text-white">{activeFilter}</span>.
           </p>
           <button
             type="button"
             onClick={() => setActiveFilter('ALL')}
-            className="text-xs text-emerald-400 hover:text-emerald-300 font-medium"
+            className="text-xs text-emerald-400 hover:text-emerald-300 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded"
           >
             Clear filter
           </button>

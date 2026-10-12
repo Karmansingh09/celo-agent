@@ -75,8 +75,8 @@ export default function ApprovalRejectModal({
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
     >
-      <div className="w-full max-w-md rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+      <div className="w-full max-w-md rounded-2xl glass-panel-elevated p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
           <h2 id="approval-reject-title" className="text-base font-bold text-rose-400 flex items-center gap-2">
             <span>Reject Spending Request?</span>
           </h2>
@@ -92,20 +92,20 @@ export default function ApprovalRejectModal({
         </div>
 
         {error && (
-          <div className="p-3 text-xs rounded-lg bg-rose-950/80 border border-rose-800 text-rose-300">
+          <div className="p-3 text-xs rounded-lg glass-panel border-rose-500/30 bg-rose-950/20 text-rose-300">
             ⚠️ {error}
           </div>
         )}
 
         <form onSubmit={handleConfirm} className="space-y-4">
-          <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2 text-xs font-mono">
+          <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2 text-xs font-mono">
             <div className="flex justify-between items-center">
               <span className="text-slate-400 font-sans">Agent:</span>
               <span className="text-white font-bold">{agentName}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-slate-400 font-sans">Amount:</span>
-              <span className="text-rose-300 font-bold">${approval.amountCusd} cUSD</span>
+              <span className="text-rose-300 font-bold tabular-nums">${approval.amountCusd} cUSD</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-slate-400 font-sans">Recipient:</span>
@@ -126,7 +126,7 @@ export default function ApprovalRejectModal({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Provide context for why this request is denied (e.g. Unplanned recipient or limit exhausted)..."
-              className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 resize-none font-sans"
+              className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900/60 border border-white/[0.08] text-white placeholder-slate-500 focus:outline-none focus:border-rose-500/60 resize-none font-sans"
             />
             <div className="flex justify-between text-[10px] text-slate-500 font-mono">
               <span>Recorded in agent audit trail</span>
@@ -134,19 +134,19 @@ export default function ApprovalRejectModal({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-700/60">
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/[0.08]">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 transition-colors shadow flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+              className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 hover:border-rose-500/60 transition-all shadow flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
             >
               {isSubmitting && (
                 <span className="w-3.5 h-3.5 border-2 border-rose-300 border-t-transparent rounded-full animate-spin" />

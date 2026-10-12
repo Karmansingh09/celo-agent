@@ -39,8 +39,8 @@ export default function AgentPolicyCard({ policy }: AgentPolicyCardProps) {
   const remainingRecipients = allowedRecipients.length - maxDisplayRecipients;
 
   return (
-    <div className="p-6 rounded-xl bg-slate-800/70 border border-slate-700/70 shadow-sm space-y-6">
-      <div className="border-b border-slate-700/60 pb-3 flex items-center justify-between">
+    <div className="glass-panel p-6 rounded-xl space-y-6">
+      <div className="border-b border-white/[0.08] pb-3 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
             <span>Spending Controls</span>
@@ -49,18 +49,18 @@ export default function AgentPolicyCard({ policy }: AgentPolicyCardProps) {
             Cryptographically enforced spending boundaries evaluated by the CeloAgent Policy Engine.
           </p>
         </div>
-        <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-800 text-slate-400 border border-slate-700">
+        <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-900/60 text-slate-400 border border-white/[0.08]">
           Read-Only
         </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Max Per Transaction */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2">
           <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
             Maximum Per Transaction
           </div>
-          <div className="text-xl font-bold font-mono text-white">
+          <div className="text-xl font-bold font-mono tabular-nums text-white">
             ${policy.maxPerTransaction} <span className="text-xs text-slate-400 font-normal">cUSD</span>
           </div>
           <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -69,11 +69,11 @@ export default function AgentPolicyCard({ policy }: AgentPolicyCardProps) {
         </div>
 
         {/* Daily Spending Limit */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2">
           <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
             Daily Spending Limit
           </div>
-          <div className="text-xl font-bold font-mono text-white">
+          <div className="text-xl font-bold font-mono tabular-nums text-white">
             ${policy.maxPerDay} <span className="text-xs text-slate-400 font-normal">cUSD</span>
           </div>
           <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -82,11 +82,11 @@ export default function AgentPolicyCard({ policy }: AgentPolicyCardProps) {
         </div>
 
         {/* Auto-Approval Threshold */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2">
           <div className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider">
             Auto-Approval Threshold
           </div>
-          <div className="text-xl font-bold font-mono text-emerald-300">
+          <div className="text-xl font-bold font-mono tabular-nums text-emerald-300">
             ≤ ${policy.autoApproveThreshold} <span className="text-xs text-slate-400 font-normal">cUSD</span>
           </div>
           <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -98,7 +98,7 @@ export default function AgentPolicyCard({ policy }: AgentPolicyCardProps) {
       {/* Allowed Recipients and Validity */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
         {/* Allowed Recipients */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
               Allowed Recipients
@@ -109,7 +109,7 @@ export default function AgentPolicyCard({ policy }: AgentPolicyCardProps) {
           </div>
 
           {allowedRecipients.length === 0 ? (
-            <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/50 space-y-1">
+            <div className="p-3 rounded-lg bg-slate-900/40 border border-white/[0.05] space-y-1">
               <span className="text-xs font-semibold text-emerald-400">Any recipient</span>
               <p className="text-[11px] text-slate-400 leading-relaxed">
                 Requests to any valid EVM recipient address are eligible for evaluation under policy limits.
@@ -120,7 +120,7 @@ export default function AgentPolicyCard({ policy }: AgentPolicyCardProps) {
               {displayedRecipients.map((addr) => (
                 <div
                   key={addr}
-                  className="flex items-center justify-between p-2 rounded bg-slate-800/60 border border-slate-700/60 text-xs font-mono"
+                  className="flex items-center justify-between p-2 rounded bg-slate-900/60 border border-white/[0.06] text-xs font-mono"
                 >
                   <span className="text-slate-300" title={addr}>
                     {addr.slice(0, 10)}...{addr.slice(-6)}
@@ -145,7 +145,7 @@ export default function AgentPolicyCard({ policy }: AgentPolicyCardProps) {
         </div>
 
         {/* Policy Validity */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5 flex flex-col justify-between">
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2.5 flex flex-col justify-between">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
@@ -154,8 +154,8 @@ export default function AgentPolicyCard({ policy }: AgentPolicyCardProps) {
               <span
                 className={`px-2 py-0.5 text-[10px] font-mono font-semibold rounded border ${
                   isExpired
-                    ? 'bg-rose-950/80 text-rose-300 border-rose-800'
-                    : 'bg-emerald-950/80 text-emerald-300 border-emerald-800'
+                    ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                    : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
                 }`}
               >
                 {isExpired ? 'Expired' : 'Active'}
@@ -169,7 +169,7 @@ export default function AgentPolicyCard({ policy }: AgentPolicyCardProps) {
             </p>
           </div>
 
-          <div className="text-[11px] font-mono text-slate-500 pt-1 border-t border-slate-800/60">
+          <div className="text-[11px] font-mono text-slate-500 pt-1 border-t border-white/[0.06]">
             Timestamp: {policy.validUntil}
           </div>
         </div>

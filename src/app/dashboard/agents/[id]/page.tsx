@@ -156,19 +156,19 @@ export default function AgentDetailPage() {
     ? {
         ACTIVE: {
           label: '● ACTIVE',
-          badgeClass: 'bg-emerald-950/80 text-emerald-300 border-emerald-800',
+          badgeClass: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
           description:
             'This agent is currently active and may submit controlled spending requests subject to its configured policy.',
         },
         PAUSED: {
           label: '● PAUSED',
-          badgeClass: 'bg-amber-950/80 text-amber-300 border-amber-800',
+          badgeClass: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
           description:
             'This agent is paused. New spending requests are blocked until the agent is resumed.',
         },
         TERMINATED: {
           label: '● TERMINATED',
-          badgeClass: 'bg-rose-950/80 text-rose-300 border-rose-800',
+          badgeClass: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
           description:
             'This agent has been permanently terminated and cannot be resumed.',
         },
@@ -180,27 +180,27 @@ export default function AgentDetailPage() {
     return (
       <div className="space-y-6 animate-pulse">
         {/* Breadcrumb Skeleton */}
-        <div className="h-4 w-24 bg-slate-700/60 rounded" />
+        <div className="h-4 w-24 bg-white/[0.06] rounded" />
 
         {/* Header Skeleton */}
-        <div className="p-6 rounded-2xl bg-slate-800/40 border border-slate-700/40 space-y-3">
+        <div className="glass-panel p-6 rounded-2xl space-y-3">
           <div className="flex justify-between items-center">
-            <div className="h-6 w-48 bg-slate-700 rounded" />
-            <div className="h-6 w-24 bg-slate-700 rounded" />
+            <div className="h-6 w-48 bg-white/[0.06] rounded" />
+            <div className="h-6 w-24 bg-white/[0.06] rounded" />
           </div>
-          <div className="h-4 w-72 bg-slate-700/60 rounded" />
+          <div className="h-4 w-72 bg-white/[0.04] rounded" />
         </div>
 
         {/* 2-Column Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <div className="h-64 rounded-xl bg-slate-800/40 border border-slate-700/40" />
-            <div className="h-64 rounded-xl bg-slate-800/40 border border-slate-700/40" />
-            <div className="h-32 rounded-xl bg-slate-800/40 border border-slate-700/40" />
+            <div className="h-64 rounded-xl glass-panel" />
+            <div className="h-64 rounded-xl glass-panel" />
+            <div className="h-32 rounded-xl glass-panel" />
           </div>
           <div className="space-y-6">
-            <div className="h-48 rounded-xl bg-slate-800/40 border border-slate-700/40" />
-            <div className="h-40 rounded-xl bg-slate-800/40 border border-slate-700/40" />
+            <div className="h-48 rounded-xl glass-panel" />
+            <div className="h-40 rounded-xl glass-panel" />
           </div>
         </div>
       </div>
@@ -213,13 +213,13 @@ export default function AgentDetailPage() {
       <div className="space-y-6">
         <Link
           href="/dashboard/agents"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-emerald-400 transition-colors"
         >
           <span>←</span>
           <span>Back to Agents</span>
         </Link>
 
-        <div className="p-12 text-center rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-4 max-w-lg mx-auto my-12">
+        <div className="glass-panel p-12 text-center rounded-2xl space-y-4 max-w-lg mx-auto my-12">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-3xl">
             🔍
           </div>
@@ -232,7 +232,7 @@ export default function AgentDetailPage() {
           <div className="pt-2">
             <Link
               href="/dashboard/agents"
-              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition-colors inline-block"
+              className="px-4 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold transition-all inline-block"
             >
               Back to Agents
             </Link>
@@ -248,13 +248,13 @@ export default function AgentDetailPage() {
       <div className="space-y-6">
         <Link
           href="/dashboard/agents"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-emerald-400 transition-colors"
         >
           <span>←</span>
           <span>Back to Agents</span>
         </Link>
 
-        <div className="p-6 rounded-2xl bg-rose-950/80 border border-rose-800 text-rose-300 text-xs flex flex-col items-center justify-center space-y-3">
+        <div className="glass-panel p-6 rounded-2xl border-rose-500/30 bg-rose-950/20 text-rose-300 text-xs flex flex-col items-center justify-center space-y-3">
           <div className="flex items-center gap-2">
             <span>⚠️</span>
             <span className="font-semibold text-sm">Unable to load this agent</span>
@@ -264,13 +264,13 @@ export default function AgentDetailPage() {
             <button
               type="button"
               onClick={() => fetchAgent()}
-              className="px-4 py-2 rounded-lg bg-rose-900/80 hover:bg-rose-800 text-white font-medium text-xs transition-colors"
+              className="px-4 py-2 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-medium text-xs transition-colors"
             >
               Retry
             </button>
             <Link
               href="/dashboard/agents"
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors"
+              className="px-4 py-2 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-200 text-xs font-medium border border-white/[0.08] transition-colors"
             >
               Back to Agents
             </Link>
@@ -286,7 +286,7 @@ export default function AgentDetailPage() {
       <div>
         <Link
           href="/dashboard/agents"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-emerald-400 transition-colors"
         >
           <span>←</span>
           <span>Agents</span>
@@ -295,7 +295,7 @@ export default function AgentDetailPage() {
 
       {/* Action Notification Banners */}
       {actionSuccess && (
-        <div className="p-3 text-xs rounded-xl bg-emerald-950/80 border border-emerald-800 text-emerald-300 flex items-center justify-between">
+        <div className="glass-panel p-3 text-xs rounded-xl border-emerald-500/30 bg-emerald-950/20 text-emerald-300 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span>✓</span>
             <span>{actionSuccess}</span>
@@ -311,7 +311,7 @@ export default function AgentDetailPage() {
       )}
 
       {actionError && (
-        <div className="p-3 text-xs rounded-xl bg-rose-950/80 border border-rose-800 text-rose-300 flex items-center justify-between">
+        <div className="glass-panel p-3 text-xs rounded-xl border-rose-500/30 bg-rose-950/20 text-rose-300 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span>⚠️</span>
             <span>{actionError}</span>
@@ -327,7 +327,7 @@ export default function AgentDetailPage() {
       )}
 
       {/* Header Banner */}
-      <div className="p-6 rounded-2xl bg-slate-800/80 border border-slate-700/80 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="glass-panel p-6 rounded-2xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1.5">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
@@ -354,7 +354,7 @@ export default function AgentDetailPage() {
                 type="button"
                 aria-label="Request spending"
                 onClick={() => setIsSpendingDrawerOpen(true)}
-                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
                 Request Spending
               </button>
@@ -362,7 +362,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('pause')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-slate-800 text-amber-300 border border-white/[0.08] hover:border-amber-500/40 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               >
                 Pause Agent
               </button>
@@ -370,7 +370,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('terminate')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 hover:border-rose-800 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-rose-950/40 text-rose-300 border border-white/[0.08] hover:border-rose-500/40 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 Terminate Agent
               </button>
@@ -380,7 +380,7 @@ export default function AgentDetailPage() {
           {agent.status === 'PAUSED' && (
             <>
               <span
-                className="text-[11px] font-mono text-amber-400 bg-amber-950/60 border border-amber-900/60 px-2.5 py-1 rounded"
+                className="text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded"
                 title="Spending requests are blocked while agent is paused"
               >
                 Spending paused
@@ -389,7 +389,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('resume')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
                 Resume Agent
               </button>
@@ -397,7 +397,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('terminate')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 hover:border-rose-800 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-rose-950/40 text-rose-300 border border-white/[0.08] hover:border-rose-500/40 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 Terminate Agent
               </button>
@@ -405,7 +405,7 @@ export default function AgentDetailPage() {
           )}
 
           {agent.status === 'TERMINATED' && (
-            <span className="text-xs font-mono text-slate-500 italic px-3 py-1.5 rounded bg-slate-900 border border-slate-800">
+            <span className="text-xs font-mono text-slate-500 italic px-3 py-1.5 rounded bg-slate-900/60 border border-white/[0.06]">
               Retired from Service
             </span>
           )}
@@ -423,20 +423,20 @@ export default function AgentDetailPage() {
           <AgentPolicyCard policy={agent.spendingPolicy} />
 
           {/* Activity Section Placeholder */}
-          <div className="p-6 rounded-xl bg-slate-800/70 border border-slate-700/70 shadow-sm space-y-4">
-            <div className="border-b border-slate-700/60 pb-3 flex items-center justify-between">
+          <div className="glass-panel p-6 rounded-xl space-y-4">
+            <div className="border-b border-white/[0.08] pb-3 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Activity</h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Audit log of payment requests, policy evaluations, and lifecycle updates.
                 </p>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-800 text-slate-400 border border-slate-700">
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-900/60 text-slate-400 border border-white/[0.08]">
                 Audit Trail
               </span>
             </div>
 
-            <div className="p-8 text-center rounded-xl bg-slate-900/40 border border-slate-800/80 space-y-2">
+            <div className="p-8 text-center rounded-xl bg-slate-900/40 border border-white/[0.06] space-y-2">
               <div className="text-2xl">📜</div>
               <p className="text-xs font-semibold text-slate-300">No activity history yet.</p>
               <p className="text-[11px] text-slate-400 max-w-md mx-auto leading-relaxed">
@@ -449,8 +449,8 @@ export default function AgentDetailPage() {
         {/* Right Column (1 span): Lifecycle Controls & Danger Zone */}
         <div className="space-y-6">
           {/* Lifecycle Status & Controls */}
-          <div className="p-6 rounded-xl bg-slate-800/70 border border-slate-700/70 shadow-sm space-y-4">
-            <div className="border-b border-slate-700/60 pb-3">
+          <div className="glass-panel p-6 rounded-xl space-y-4">
+            <div className="border-b border-white/[0.08] pb-3">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Lifecycle</h3>
             </div>
 
@@ -466,7 +466,7 @@ export default function AgentDetailPage() {
                 )}
               </div>
 
-              <p className="text-xs text-slate-300 leading-relaxed p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+              <p className="text-xs text-slate-300 leading-relaxed p-3 rounded-lg bg-slate-900/60 border border-white/[0.06]">
                 {statusConfig?.description}
               </p>
 
@@ -478,7 +478,7 @@ export default function AgentDetailPage() {
                       type="button"
                       aria-label="Request spending"
                       onClick={() => setIsSpendingDrawerOpen(true)}
-                      className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm text-center mb-1"
+                      className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all shadow-sm text-center mb-1"
                     >
                       Request Spending
                     </button>
@@ -486,7 +486,7 @@ export default function AgentDetailPage() {
                       type="button"
                       disabled={isActionExecuting}
                       onClick={() => handleOpenLifecycleModal('pause')}
-                      className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition-colors disabled:opacity-50 text-center"
+                      className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-slate-900/60 hover:bg-slate-800 text-amber-300 border border-white/[0.08] hover:border-amber-500/40 transition-all disabled:opacity-50 text-center"
                     >
                       Pause Agent
                     </button>
@@ -502,7 +502,7 @@ export default function AgentDetailPage() {
                       type="button"
                       disabled={isActionExecuting}
                       onClick={() => handleOpenLifecycleModal('resume')}
-                      className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 transition-colors disabled:opacity-50 text-center"
+                      className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all disabled:opacity-50 text-center"
                     >
                       Resume Agent
                     </button>
@@ -514,7 +514,7 @@ export default function AgentDetailPage() {
                     <p className="text-[11px] text-rose-400/90 italic pb-1">
                       This agent has been terminated and cannot submit new spending requests.
                     </p>
-                    <div className="text-center py-2 text-xs font-mono text-slate-500 italic bg-slate-900/60 rounded border border-slate-800">
+                    <div className="text-center py-2 text-xs font-mono text-slate-500 italic bg-slate-900/60 rounded border border-white/[0.06]">
                       Agent terminated permanently
                     </div>
                   </div>
@@ -524,8 +524,8 @@ export default function AgentDetailPage() {
           </div>
 
           {/* Danger Zone */}
-          <div className="p-6 rounded-xl bg-slate-800/70 border border-rose-900/60 shadow-sm space-y-4">
-            <div className="border-b border-rose-900/50 pb-3 flex items-center justify-between">
+          <div className="glass-panel p-6 rounded-xl border border-rose-500/30 bg-rose-950/10 space-y-4">
+            <div className="border-b border-rose-500/20 pb-3 flex items-center justify-between">
               <h3 className="text-sm font-bold text-rose-400 uppercase tracking-wider">Danger Zone</h3>
               <span className="text-xs">⚠️</span>
             </div>
@@ -543,7 +543,7 @@ export default function AgentDetailPage() {
                   type="button"
                   disabled={isActionExecuting}
                   onClick={() => handleOpenLifecycleModal('terminate')}
-                  className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 transition-colors disabled:opacity-50 text-center"
+                  className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 hover:border-rose-500/60 transition-all disabled:opacity-50 text-center"
                 >
                   Terminate Agent
                 </button>

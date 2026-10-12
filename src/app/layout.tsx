@@ -15,30 +15,30 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="flex flex-col min-h-screen bg-slate-900 text-slate-100 antialiased">
+      <body className="flex flex-col min-h-screen bg-[#080C12] text-slate-100 antialiased selection:bg-emerald-500/20 selection:text-emerald-300">
         <AuthProvider>
-          <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+          <header className="border-b border-[rgba(180,205,220,0.1)] bg-[#0B1119]/75 backdrop-blur-md sticky top-0 z-50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.5)]">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center font-bold text-slate-900">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 flex items-center justify-center font-bold text-xs tracking-wider shadow-[0_0_14px_-2px_rgba(134,227,176,0.25)]">
                   CA
                 </div>
                 <span className="text-xl font-bold tracking-tight text-white">
                   Celo<span className="text-emerald-400">Agent</span>
                 </span>
-                <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-emerald-950 text-emerald-300 border border-emerald-800 rounded-full">
+                <span className="ml-2 px-2.5 py-0.5 text-[11px] font-mono font-medium bg-[#141D2A]/80 text-emerald-300 border border-emerald-500/30 rounded-full">
                   Celo Sepolia
                 </span>
               </div>
               <div className="flex items-center gap-6">
                 <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
-                  <a href="/#overview" className="hover:text-emerald-400 transition-colors">
+                  <a href="/#overview" className="hover:text-emerald-300 transition-colors">
                     Overview
                   </a>
-                  <a href="/#flow" className="hover:text-emerald-400 transition-colors">
+                  <a href="/#flow" className="hover:text-emerald-300 transition-colors">
                     Flow
                   </a>
-                  <a href="/#architecture" className="hover:text-emerald-400 transition-colors">
+                  <a href="/#architecture" className="hover:text-emerald-300 transition-colors">
                     Architecture
                   </a>
                 </nav>
@@ -51,7 +51,7 @@ export default function RootLayout({
             {children}
           </main>
 
-          <footer className="border-t border-slate-800 bg-slate-950 py-6 text-center text-sm text-slate-400">
+          <footer className="border-t border-[rgba(180,205,220,0.08)] bg-[#080C12]/80 backdrop-blur-sm py-6 text-center text-xs text-slate-500">
             <p>© {new Date().getFullYear()} CeloAgent. Built on Celo Sepolia (Chain ID: 11142220).</p>
           </footer>
         </AuthProvider>

@@ -106,13 +106,16 @@ export default function DashboardOverviewPage() {
       {/* Overview Page Heading & Network Context */}
       <OverviewHeader ownerAddress={ownerAddress} chainId={chainId} />
 
-      {/* Local Error State Banner (Section 14) */}
+      {/* Local Error State Banner */}
       {fetchError && (
-        <div className="p-4 rounded-xl bg-rose-950/70 border border-rose-800 text-rose-300 text-xs flex items-center justify-between">
-          <span>⚠️ {fetchError}</span>
+        <div className="p-4 rounded-2xl bg-rose-950/50 border border-rose-800/60 text-rose-300 text-xs flex items-center justify-between glass-panel">
+          <span className="flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{fetchError}</span>
+          </span>
           <button
             onClick={fetchDashboardData}
-            className="px-3 py-1 rounded bg-rose-900/80 hover:bg-rose-800 text-rose-200 font-semibold transition-colors"
+            className="px-3 py-1 rounded-lg bg-rose-900/60 hover:bg-rose-800/80 border border-rose-700/60 text-rose-200 font-semibold text-xs transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
           >
             Retry
           </button>

@@ -27,10 +27,10 @@ export default function WalletStatus() {
       {/* Network Badge */}
       {chainId !== null && (
         <span
-          className={`px-2.5 py-1 rounded-full font-mono font-medium flex items-center gap-1.5 shrink-0 ${
+          className={`px-2.5 py-1 rounded-full font-mono text-[11px] font-medium flex items-center gap-1.5 shrink-0 ${
             isSupportedChain
-              ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
-              : 'bg-amber-950/80 text-amber-300 border border-amber-800'
+              ? 'bg-[rgba(20,29,42,0.7)] text-emerald-300 border border-emerald-500/30 shadow-[0_0_12px_-3px_rgba(134,227,176,0.2)]'
+              : 'bg-[rgba(20,29,42,0.7)] text-amber-300 border border-amber-500/30'
           }`}
           title={`Chain ID: ${chainId}`}
         >
@@ -46,11 +46,11 @@ export default function WalletStatus() {
 
       {/* Address Badge */}
       <div
-        className="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-200 font-mono flex items-center gap-1.5 shrink-0"
+        className="px-3 py-1 rounded-full bg-[rgba(20,29,42,0.7)] border border-[rgba(180,205,220,0.14)] text-slate-200 font-mono text-[11px] flex items-center gap-1.5 shrink-0 shadow-sm"
         title={displayAddress}
       >
         <span
-          className={`w-2 h-2 rounded-full ${
+          className={`w-1.5 h-1.5 rounded-full ${
             authenticated ? 'bg-emerald-400' : 'bg-slate-400'
           }`}
         />

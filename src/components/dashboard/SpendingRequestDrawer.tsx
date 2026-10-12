@@ -83,8 +83,8 @@ export default function SpendingRequestDrawer({
         }}
         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
       >
-        <div className="w-full max-w-lg rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+        <div className="w-full max-w-lg rounded-2xl glass-panel-elevated p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
             <h2 id="spending-request-drawer-title" className="text-base font-bold text-white flex items-center gap-2">
               <span>Controlled Spending Request</span>
             </h2>
@@ -98,7 +98,7 @@ export default function SpendingRequestDrawer({
             </button>
           </div>
 
-          <div className="p-4 rounded-xl bg-amber-950/60 border border-amber-800/80 space-y-2 text-center">
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2 text-center">
             <div className="text-2xl">⚠️</div>
             <h3 className="text-sm font-bold text-amber-300">
               Spending requests unavailable
@@ -110,11 +110,11 @@ export default function SpendingRequestDrawer({
             </p>
           </div>
 
-          <div className="flex items-center justify-end pt-3 border-t border-slate-700/60">
+          <div className="flex items-center justify-end pt-3 border-t border-white/[0.08]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-200 border border-white/[0.08] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               Close
             </button>
@@ -236,9 +236,9 @@ export default function SpendingRequestDrawer({
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
     >
-      <div className="w-full max-w-lg rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg rounded-2xl glass-panel-elevated p-6 space-y-5 max-h-[90vh] overflow-y-auto">
         {/* Drawer Header */}
-        <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
           <div>
             <h2 id="spending-request-drawer-active-title" className="text-base font-bold text-white flex items-center gap-2">
               <span>Controlled Spending Request</span>
@@ -262,7 +262,7 @@ export default function SpendingRequestDrawer({
         {step === 'FORM' && (
           <form onSubmit={handleProceedToReview} className="space-y-4">
             {formError && (
-              <div className="p-3 text-xs rounded-lg bg-rose-950/80 border border-rose-800 text-rose-300">
+              <div className="p-3 text-xs rounded-lg glass-panel border-rose-500/30 bg-rose-950/20 text-rose-300">
                 ⚠️ {formError}
               </div>
             )}
@@ -280,7 +280,7 @@ export default function SpendingRequestDrawer({
                   placeholder="8.50"
                   value={amount}
                   onChange={(e) => handleAmountChange(e.target.value)}
-                  className="w-full pl-7 pr-16 py-2 text-xs rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 font-mono focus:outline-none focus:border-emerald-500"
+                  className="w-full pl-7 pr-16 py-2 text-xs rounded-lg bg-slate-900/60 border border-white/[0.08] text-white placeholder-slate-500 font-mono tabular-nums focus:outline-none focus:border-emerald-500/60"
                 />
                 <span className="absolute right-3 top-2.5 text-xs font-mono text-slate-400">cUSD</span>
               </div>
@@ -300,7 +300,7 @@ export default function SpendingRequestDrawer({
                 placeholder="0x71A4...C92F"
                 value={recipient}
                 onChange={(e) => handleRecipientChange(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 font-mono focus:outline-none focus:border-emerald-500"
+                className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900/60 border border-white/[0.08] text-white placeholder-slate-500 font-mono focus:outline-none focus:border-emerald-500/60"
               />
               <p className="text-[11px] text-slate-400">
                 The address that this controlled spending request targets.
@@ -319,43 +319,43 @@ export default function SpendingRequestDrawer({
                 value={purpose}
                 onChange={(e) => handlePurposeChange(e.target.value)}
                 maxLength={500}
-                className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900/60 border border-white/[0.08] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60"
               />
             </div>
 
             {/* Policy Context Card */}
-            <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+            <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2">
               <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
                 Policy Boundary Context
               </div>
               <div className="grid grid-cols-3 gap-2 text-xs font-mono">
                 <div>
                   <span className="text-[10px] text-slate-500 block">Max / tx</span>
-                  <span className="text-white font-bold">${policy.maxPerTransaction}</span>
+                  <span className="text-white font-bold tabular-nums">${policy.maxPerTransaction}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-500 block">Auto-approve</span>
-                  <span className="text-emerald-400 font-bold">≤ ${policy.autoApproveThreshold}</span>
+                  <span className="text-emerald-400 font-bold tabular-nums">≤ ${policy.autoApproveThreshold}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-500 block">Daily limit</span>
-                  <span className="text-white font-bold">${policy.maxPerDay}</span>
+                  <span className="text-white font-bold tabular-nums">${policy.maxPerDay}</span>
                 </div>
               </div>
             </div>
 
             {/* Form Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-700/60">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] transition-all"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all shadow"
               >
                 Review request →
               </button>
@@ -366,14 +366,14 @@ export default function SpendingRequestDrawer({
         {/* STEP 2: REVIEW DETAILS */}
         {step === 'REVIEW' && (
           <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5 text-xs font-mono">
+            <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2.5 text-xs font-mono">
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 font-sans">Agent:</span>
                 <span className="text-white font-bold">{agent.name}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 font-sans">Amount:</span>
-                <span className="text-emerald-400 font-bold text-sm">
+                <span className="text-emerald-400 font-bold text-sm tabular-nums">
                   {formatCusdString(amount)}
                 </span>
               </div>
@@ -384,22 +384,22 @@ export default function SpendingRequestDrawer({
                 </span>
               </div>
               {purpose.trim() && (
-                <div className="flex justify-between items-center pt-1 border-t border-slate-800/80">
+                <div className="flex justify-between items-center pt-1 border-t border-white/[0.06]">
                   <span className="text-slate-400 font-sans">Purpose:</span>
                   <span className="text-slate-300 truncate max-w-[240px]">{purpose}</span>
                 </div>
               )}
             </div>
 
-            <div className="p-3 rounded-lg bg-slate-900/40 border border-slate-800/80 text-[11px] text-slate-400 leading-relaxed">
+            <div className="p-3 rounded-lg bg-slate-900/40 border border-white/[0.06] text-[11px] text-slate-400 leading-relaxed">
               ℹ️ This spending request will be evaluated against the agent&apos;s current spending policy and daily budget in the CeloAgent control plane.
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-700/60">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
               <button
                 type="button"
                 onClick={handleBackToForm}
-                className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] transition-all"
               >
                 ← Back
               </button>
@@ -407,7 +407,7 @@ export default function SpendingRequestDrawer({
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleSubmitRequest}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow flex items-center gap-1.5 disabled:opacity-50"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all shadow flex items-center gap-1.5 disabled:opacity-50"
               >
                 <span>Submit request</span>
               </button>
@@ -433,7 +433,7 @@ export default function SpendingRequestDrawer({
           <div className="space-y-4">
             {/* RESERVED Result */}
             {result.outcome === 'RESERVED' && (
-              <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-800/80 space-y-2 text-center">
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2 text-center">
                 <div className="text-2xl">✓</div>
                 <h3 className="text-sm font-bold text-emerald-300">Spending request reserved</h3>
                 <p className="text-xs text-slate-300 leading-relaxed">
@@ -449,7 +449,7 @@ export default function SpendingRequestDrawer({
 
             {/* REQUIRE_USER_APPROVAL Result */}
             {result.outcome === 'REQUIRE_USER_APPROVAL' && (
-              <div className="p-4 rounded-xl bg-amber-950/60 border border-amber-800/80 space-y-3 text-center">
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-3 text-center">
                 <div className="text-2xl">⏳</div>
                 <div className="space-y-1">
                   <h3 className="text-sm font-bold text-amber-300">Approval required</h3>
@@ -457,10 +457,10 @@ export default function SpendingRequestDrawer({
                     This request exceeds automatic limits and requires human approval before controlled execution can proceed. Daily budget is not reserved until approved.
                   </p>
                 </div>
-                <div className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-xs font-mono text-left space-y-1">
+                <div className="p-2.5 rounded-lg bg-slate-900/60 border border-white/[0.06] text-xs font-mono text-left space-y-1">
                   <div className="flex justify-between">
                     <span className="text-slate-400">Amount:</span>
-                    <span className="text-white font-bold">{formatCusdString(amount)}</span>
+                    <span className="text-white font-bold tabular-nums">{formatCusdString(amount)}</span>
                   </div>
                   {result.pendingApproval?.requestId && (
                     <div className="flex justify-between text-[11px]">
@@ -474,7 +474,7 @@ export default function SpendingRequestDrawer({
                 <div className="pt-2 flex justify-center">
                   <Link
                     href="/dashboard/approvals"
-                    className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-semibold text-xs transition-colors shadow"
+                    className="px-4 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-semibold text-xs transition-all shadow"
                   >
                     Review in Approvals queue →
                   </Link>
@@ -484,7 +484,7 @@ export default function SpendingRequestDrawer({
 
             {/* POLICY_DENIED Result */}
             {result.outcome === 'POLICY_DENIED' && (
-              <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-800/80 space-y-2 text-center">
+              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2 text-center">
                 <div className="text-2xl">✕</div>
                 <h3 className="text-sm font-bold text-rose-300">Request denied</h3>
                 <p className="text-xs text-slate-300 leading-relaxed">
@@ -495,7 +495,7 @@ export default function SpendingRequestDrawer({
 
             {/* BUDGET_DENIED Result */}
             {result.outcome === 'BUDGET_DENIED' && (
-              <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-800/80 space-y-2 text-center">
+              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2 text-center">
                 <div className="text-2xl">⚠️</div>
                 <h3 className="text-sm font-bold text-rose-300">Budget unavailable</h3>
                 <p className="text-xs text-slate-300 leading-relaxed">
@@ -506,7 +506,7 @@ export default function SpendingRequestDrawer({
 
             {/* DUPLICATE_IN_PROGRESS Result */}
             {result.outcome === 'DUPLICATE_IN_PROGRESS' && (
-              <div className="p-4 rounded-xl bg-amber-950/60 border border-amber-800/80 space-y-2 text-center">
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2 text-center">
                 <div className="text-2xl">⏳</div>
                 <h3 className="text-sm font-bold text-amber-300">Request already in progress</h3>
                 <p className="text-xs text-slate-300 leading-relaxed">
@@ -517,9 +517,9 @@ export default function SpendingRequestDrawer({
 
             {/* DUPLICATE_COMMITTED Result */}
             {result.outcome === 'DUPLICATE_COMMITTED' && (
-              <div className="p-4 rounded-xl bg-blue-950/60 border border-blue-800/80 space-y-2 text-center">
+              <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-2 text-center">
                 <div className="text-2xl">ℹ️</div>
-                <h3 className="text-sm font-bold text-blue-300">Request already processed</h3>
+                <h3 className="text-sm font-bold text-sky-300">Request already processed</h3>
                 <p className="text-xs text-slate-300 leading-relaxed">
                   An identical spending request has already reached a committed state.
                 </p>
@@ -528,7 +528,7 @@ export default function SpendingRequestDrawer({
 
             {/* IDEMPOTENCY_CONFLICT Result */}
             {result.outcome === 'IDEMPOTENCY_CONFLICT' && (
-              <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-800/80 space-y-2 text-center">
+              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2 text-center">
                 <div className="text-2xl">⚠️</div>
                 <h3 className="text-sm font-bold text-rose-300">Request conflict</h3>
                 <p className="text-xs text-slate-300 leading-relaxed">
@@ -537,11 +537,11 @@ export default function SpendingRequestDrawer({
               </div>
             )}
 
-            <div className="flex items-center justify-end pt-3 border-t border-slate-700/60">
+            <div className="flex items-center justify-end pt-3 border-t border-white/[0.08]">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-200 border border-white/[0.08] transition-all"
               >
                 Done
               </button>
@@ -552,7 +552,7 @@ export default function SpendingRequestDrawer({
         {/* STEP 5: ERROR STATE */}
         {step === 'ERROR' && (
           <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-300 text-xs space-y-2">
+            <div className="p-4 rounded-xl bg-rose-950/20 border border-rose-500/30 text-rose-300 text-xs space-y-2">
               <div className="font-bold flex items-center gap-1.5">
                 <span>⚠️</span>
                 <span>Submission Error</span>
@@ -560,25 +560,25 @@ export default function SpendingRequestDrawer({
               <p className="text-slate-300 leading-relaxed">{submissionError}</p>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-700/60">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
               <button
                 type="button"
                 onClick={handleBackToForm}
-                className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] transition-all"
               >
                 ← Back to Form
               </button>
               <button
                 type="button"
                 onClick={handleSubmitRequest}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all shadow"
               >
                 Retry
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-200 border border-white/[0.08] transition-all"
               >
                 Close
               </button>

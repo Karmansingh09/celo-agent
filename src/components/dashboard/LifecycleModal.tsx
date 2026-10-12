@@ -96,8 +96,8 @@ export default function LifecycleModal({
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
     >
-      <div className="w-full max-w-md rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+      <div className="w-full max-w-md rounded-2xl glass-panel-elevated p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
           <h2
             id="lifecycle-modal-title"
             className={`text-base font-bold ${
@@ -117,7 +117,7 @@ export default function LifecycleModal({
         </div>
 
         {error && (
-          <div className="p-3 text-xs rounded-lg bg-rose-950/80 border border-rose-800 text-rose-300">
+          <div className="p-3 text-xs rounded-lg glass-panel border-rose-500/30 bg-rose-950/20 text-rose-300">
             ⚠️ {error}
           </div>
         )}
@@ -136,12 +136,12 @@ export default function LifecycleModal({
               placeholder="e.g. Scheduled maintenance"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-sans"
+              className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900/60 border border-white/[0.08] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 font-sans"
             />
           </div>
 
           {isTerminate && (
-            <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800/80 space-y-2">
+            <div className="p-3 rounded-lg bg-rose-950/20 border border-rose-500/30 space-y-2">
               <label className="block text-xs font-semibold text-rose-300">
                 Type agent name <span className="font-mono text-white underline">{agent.name}</span> to confirm:
               </label>
@@ -151,7 +151,7 @@ export default function LifecycleModal({
                 value={confirmName}
                 onChange={(e) => setConfirmName(e.target.value)}
                 placeholder={agent.name}
-                className="w-full px-3 py-1.5 text-xs rounded bg-slate-900 border border-rose-800 text-white font-mono focus:outline-none focus:border-rose-500"
+                className="w-full px-3 py-1.5 text-xs rounded bg-slate-900/60 border border-rose-500/40 text-white font-mono focus:outline-none focus:border-rose-400"
               />
             </div>
           )}
@@ -160,12 +160,12 @@ export default function LifecycleModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`flex-1 py-2 px-4 rounded-lg font-semibold text-xs text-white transition-colors shadow disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-slate-400 ${
+              className={`flex-1 py-2 px-4 rounded-lg font-semibold text-xs transition-all shadow disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-slate-400 ${
                 isTerminate
-                  ? 'bg-rose-600 hover:bg-rose-500'
+                  ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 hover:border-rose-500/60'
                   : isPause
-                  ? 'bg-amber-600 hover:bg-amber-500'
-                  : 'bg-emerald-600 hover:bg-emerald-500'
+                  ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 hover:border-amber-500/60'
+                  : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60'
               }`}
             >
               {isSubmitting
@@ -179,7 +179,7 @@ export default function LifecycleModal({
             <button
               type="button"
               onClick={onClose}
-              className="py-2 px-4 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="py-2 px-4 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] font-medium text-xs transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               Cancel
             </button>

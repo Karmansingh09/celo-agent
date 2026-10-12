@@ -88,7 +88,7 @@ export default function ApprovalCard({
   const agentName = agent ? agent.name : `Agent ${approval.agentId.slice(0, 14)}`;
 
   return (
-    <div className="p-6 rounded-2xl bg-slate-800/80 border border-slate-700/80 shadow-sm flex flex-col justify-between space-y-5 hover:border-slate-600/80 transition-colors">
+    <div className="glass-card-interactive p-6 rounded-2xl flex flex-col justify-between space-y-5">
       <div className="space-y-4">
         {/* Top Header: Agent Link & Status Badge */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -110,11 +110,11 @@ export default function ApprovalCard({
 
           <div className="flex items-center gap-2">
             {isExpired ? (
-              <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-rose-950/80 text-rose-300 border border-rose-800 shrink-0">
+              <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/30 shrink-0">
                 ● EXPIRED
               </span>
             ) : (
-              <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-amber-950/80 text-amber-300 border border-amber-800 shrink-0">
+              <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 shrink-0">
                 ● APPROVAL REQUIRED
               </span>
             )}
@@ -122,11 +122,11 @@ export default function ApprovalCard({
         </div>
 
         {/* Amount Display Card */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-1">
           <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
             Requested Amount
           </div>
-          <div className="text-2xl font-bold font-mono text-white tracking-tight">
+          <div className="text-2xl font-bold font-mono tabular-nums text-white tracking-tight">
             {formatCusdString(approval.amountCusd)}
           </div>
         </div>
@@ -134,7 +134,7 @@ export default function ApprovalCard({
         {/* Details Grid: Recipient, Reason, Timestamps */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
           {/* Recipient */}
-          <div className="p-3 rounded-lg bg-slate-900/40 border border-slate-800/80 space-y-1">
+          <div className="p-3 rounded-lg bg-slate-900/60 border border-white/[0.06] space-y-1">
             <span className="text-slate-400 font-sans text-[11px] uppercase tracking-wider block">
               Recipient
             </span>
@@ -154,7 +154,7 @@ export default function ApprovalCard({
           </div>
 
           {/* Requested Timestamp */}
-          <div className="p-3 rounded-lg bg-slate-900/40 border border-slate-800/80 space-y-1">
+          <div className="p-3 rounded-lg bg-slate-900/60 border border-white/[0.06] space-y-1">
             <span className="text-slate-400 font-sans text-[11px] uppercase tracking-wider block">
               Requested At
             </span>
@@ -164,7 +164,7 @@ export default function ApprovalCard({
           </div>
 
           {/* Reason Context */}
-          <div className="p-3 rounded-lg bg-slate-900/40 border border-slate-800/80 space-y-1 md:col-span-2">
+          <div className="p-3 rounded-lg bg-slate-900/60 border border-white/[0.06] space-y-1 md:col-span-2">
             <span className="text-slate-400 font-sans text-[11px] uppercase tracking-wider block">
               Approval Context
             </span>
@@ -175,7 +175,7 @@ export default function ApprovalCard({
 
           {/* Validity Note */}
           {approval.validUntil && (
-            <div className="p-3 rounded-lg bg-slate-900/40 border border-slate-800/80 space-y-1 md:col-span-2">
+            <div className="p-3 rounded-lg bg-slate-900/60 border border-white/[0.06] space-y-1 md:col-span-2">
               <span className="text-slate-400 font-sans text-[11px] uppercase tracking-wider block">
                 Validity
               </span>
@@ -188,12 +188,12 @@ export default function ApprovalCard({
       </div>
 
       {/* Primary Actions Bar */}
-      <div className="pt-4 border-t border-slate-700/60 flex items-center justify-end gap-3">
+      <div className="pt-4 border-t border-white/[0.08] flex items-center justify-end gap-3">
         <button
           type="button"
           disabled={isActionLoading}
           onClick={() => onReject(approval, agent)}
-          className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 hover:border-rose-800 transition-colors disabled:opacity-50"
+          className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-900/60 hover:bg-rose-950/40 text-rose-300 border border-white/[0.08] hover:border-rose-500/40 transition-all disabled:opacity-50"
         >
           Reject
         </button>
@@ -202,7 +202,7 @@ export default function ApprovalCard({
           type="button"
           disabled={isActionLoading || isExpired}
           onClick={() => onApprove(approval, agent)}
-          className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5"
+          className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5"
         >
           <span>Approve request</span>
         </button>

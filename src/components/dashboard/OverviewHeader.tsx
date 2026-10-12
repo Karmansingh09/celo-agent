@@ -20,7 +20,8 @@ export default function OverviewHeader({ ownerAddress, chainId }: OverviewHeader
 
       <div className="flex items-center gap-2 self-start sm:self-auto text-xs font-mono">
         <span className="text-slate-400">Network:</span>
-        <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700">
+        <span className="px-2.5 py-1 rounded-lg bg-[rgba(20,29,42,0.7)] text-emerald-300 border border-emerald-500/30 text-[11px] shadow-sm flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           {isCeloSepolia ? 'Celo Sepolia (11142220)' : isCeloMainnet ? 'Celo Mainnet (42220)' : 'Connected'}
         </span>
       </div>
