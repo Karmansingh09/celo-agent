@@ -352,10 +352,11 @@ export default function AgentDetailPage() {
             <>
               <button
                 type="button"
+                aria-label="Request spending"
                 onClick={() => setIsSpendingDrawerOpen(true)}
                 className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm"
               >
-                Request spending
+                Request Spending
               </button>
               <button
                 type="button"
@@ -475,10 +476,11 @@ export default function AgentDetailPage() {
                   <>
                     <button
                       type="button"
+                      aria-label="Request spending"
                       onClick={() => setIsSpendingDrawerOpen(true)}
                       className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm text-center mb-1"
                     >
-                      Request spending
+                      Request Spending
                     </button>
                     <button
                       type="button"

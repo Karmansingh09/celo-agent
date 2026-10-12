@@ -264,6 +264,10 @@ describe('Phase 9.6: Controlled Spending Request & Payment Simulation UI Invaria
     // Navigates to approvals queue when approval is required
     expect(content).toContain('href="/dashboard/approvals"');
 
+    // Retry and double-submission protection
+    expect(content).toContain('Retry');
+    expect(content).toContain('isSubmitting');
+
     // Strict security boundaries: no wallet signature or deprecated routes
     expect(content).not.toContain('window.ethereum');
     expect(content).not.toContain('sendTransaction');
@@ -277,10 +281,123 @@ describe('Phase 9.6: Controlled Spending Request & Payment Simulation UI Invaria
 
     // Request spending button
     expect(content).toContain('Request spending');
+    expect(content).toContain('Request Spending');
     expect(content).toContain('<SpendingRequestDrawer');
 
     // Only active agents can request spending; paused shows explanatory notice
     expect(content).toContain('Spending paused');
+    expect(content).toContain('Spending requests are unavailable while this agent is paused.');
+    expect(content).toContain('This agent has been terminated and cannot submit new spending requests.');
+  });
+
+  it('8. Unit tests: validateSpendingForm enforces financial string precision and address checks', async () => {
+    const { validateSpendingForm } = await import('../src/lib/payment/spending-request-utils');
+
+    // Valid inputs
+    expect(validateSpendingForm('8.50', validRecipient, '').valid).toBe(true);
+    expect(validateSpendingForm('0.01', validRecipient, 'Valid purpose').valid).toBe(true);
+    expect(validateSpendingForm('100', validRecipient, '').valid).toBe(true);
+    expect(validateSpendingForm('0.123456789012345678', validRecipient, '').valid).toBe(true);
+
+    // Invalid amounts: empty, non-numeric, negative, zero, >18 decimals
+    expect(validateSpendingForm('', validRecipient, '').valid).toBe(false);
+    expect(validateSpendingForm('abc', validRecipient, '').valid).toBe(false);
+    expect(validateSpendingForm('-5.00', validRecipient, '').valid).toBe(false);
+    expect(validateSpendingForm('0', validRecipient, '').valid).toBe(false);
+    expect(validateSpendingForm('0.00', validRecipient, '').valid).toBe(false);
+    expect(validateSpendingForm('0.000000000000000000', validRecipient, '').valid).toBe(false);
+    expect(validateSpendingForm('1.1234567890123456789', validRecipient, '').error).toMatch(/18 decimal/i);
+
+    // Invalid recipient: empty, non-hex, invalid length
+    expect(validateSpendingForm('1.00', '', '').error).toMatch(/recipient address is required/i);
+    expect(validateSpendingForm('1.00', '0x123', '').error).toMatch(/valid 40-character hex EVM address/i);
+    expect(validateSpendingForm('1.00', 'not-an-address', '').error).toMatch(/valid 40-character hex EVM address/i);
+
+    // Purpose length > 500
+    const longPurpose = 'a'.repeat(501);
+    expect(validateSpendingForm('1.00', validRecipient, longPurpose).error).toMatch(/500 characters/i);
+  });
+
+  it('9. Unit tests: formatCusdString formats decimal string values without floating-point arithmetic', async () => {
+    const { formatCusdString } = await import('../src/lib/payment/spending-request-utils');
+
+    expect(formatCusdString('')).toBe('$0.00 cUSD');
+    expect(formatCusdString('10')).toBe('$10.00 cUSD');
+    expect(formatCusdString('10.5')).toBe('$10.50 cUSD');
+    expect(formatCusdString('10.25')).toBe('$10.25 cUSD');
+    expect(formatCusdString('10.1234')).toBe('$10.1234 cUSD');
+  });
+
+  it('10. Unit tests: generateIdempotencyKey generates unique prefixed keys', async () => {
+    const { generateIdempotencyKey } = await import('../src/lib/payment/spending-request-utils');
+
+    const key1 = generateIdempotencyKey();
+    const key2 = generateIdempotencyKey();
+    expect(key1).toMatch(/^sim_\d+_[a-z0-9]+$/);
+    expect(key2).toMatch(/^sim_\d+_[a-z0-9]+$/);
+    expect(key1).not.toBe(key2);
+  });
+
+  it('11. API contract: client-supplied ownerAddress is strictly forbidden', async () => {
+    const forbiddenReq = new Request(`http://localhost:3000/api/agents/${agentAId}/payments`, {
+      method: 'POST',
+      headers: {
+        origin: expectedOrigin,
+        cookie: cookieA,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        amountCusd: '1.00',
+        recipient: validRecipient,
+        idempotencyKey: 'sim-test-forbidden-owner',
+        ownerAddress: ownerA, // FORBIDDEN: must be rejected!
+      }),
+    });
+    const res = await createPaymentRoute(forbiddenReq, { params: { id: agentAId } });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.success).toBe(false);
+    expect(json.error).toMatch(/forbidden field.*ownerAddress/i);
+  });
+
+  it('12. API contract: handles IDEMPOTENCY_CONFLICT when same key is submitted with differing parameters', async () => {
+    const key = 'sim-test-conflict-key';
+    // 1. Submit request requiring approval
+    const payReq1 = new Request(`http://localhost:3000/api/agents/${agentAId}/payments`, {
+      method: 'POST',
+      headers: { origin: expectedOrigin, cookie: cookieA, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        amountCusd: '5.00',
+        recipient: validRecipient,
+        idempotencyKey: key,
+      }),
+    });
+    const res1 = await createPaymentRoute(payReq1, { params: { id: agentAId } });
+    expect(res1.status).toBe(202);
+
+    // 2. Submit conflicting request with same idempotencyKey but different amount
+    const payReq2 = new Request(`http://localhost:3000/api/agents/${agentAId}/payments`, {
+      method: 'POST',
+      headers: { origin: expectedOrigin, cookie: cookieA, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        amountCusd: '6.00', // Different amount!
+        recipient: validRecipient,
+        idempotencyKey: key,
+      }),
+    });
+    const res2 = await createPaymentRoute(payReq2, { params: { id: agentAId } });
+    expect(res2.status).toBe(409);
+    const data2 = await res2.json();
+    expect(data2.data.outcome).toBe('IDEMPOTENCY_CONFLICT');
+  });
+
+  it('13. Drawer lifecycle guard prevents submission when agent is PAUSED or TERMINATED', () => {
+    const drawerPath = path.resolve(__dirname, '../src/components/dashboard/SpendingRequestDrawer.tsx');
+    const content = fs.readFileSync(drawerPath, 'utf-8');
+
+    // Lifecycle check
+    expect(content).toContain("agent.status !== 'ACTIVE'");
+    expect(content).toContain('Spending requests unavailable');
     expect(content).toContain('Spending requests are unavailable while this agent is paused.');
     expect(content).toContain('This agent has been terminated and cannot submit new spending requests.');
   });

@@ -13,7 +13,15 @@ interface SpendingRequestDrawerProps {
   onRequestSubmitted?: () => void;
 }
 
-type StepState = 'FORM' | 'REVIEW' | 'SUBMITTING' | 'RESULT' | 'ERROR';
+export type StepState = 'FORM' | 'REVIEW' | 'SUBMITTING' | 'RESULT' | 'ERROR';
+
+import {
+  generateIdempotencyKey,
+  formatCusdString,
+  validateSpendingForm,
+} from '@/lib/payment/spending-request-utils';
+
+export { generateIdempotencyKey, formatCusdString, validateSpendingForm };
 
 export default function SpendingRequestDrawer({
   isOpen,
@@ -26,6 +34,8 @@ export default function SpendingRequestDrawer({
   const [recipient, setRecipient] = useState<string>('');
   const [purpose, setPurpose] = useState<string>('');
   const [idempotencyKey, setIdempotencyKey] = useState<string>('');
+  const [isFormModified, setIsFormModified] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const [formError, setFormError] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -41,68 +51,89 @@ export default function SpendingRequestDrawer({
       setFormError(null);
       setSubmissionError(null);
       setResult(null);
-      // Generate a stable idempotency key for this drawer session
-      const randomSuffix = Math.random().toString(36).substring(2, 10);
-      setIdempotencyKey(`sim_${Date.now()}_${randomSuffix}`);
+      setIsFormModified(false);
+      setIsSubmitting(false);
+      setIdempotencyKey(generateIdempotencyKey());
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  // Lifecycle check: only ACTIVE agents can submit spending requests
+  if (agent.status !== 'ACTIVE') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div className="w-full max-w-lg rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5">
+          <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <span>Controlled Spending Request</span>
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-slate-400 hover:text-white transition-colors text-sm p-1"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="p-4 rounded-xl bg-amber-950/60 border border-amber-800/80 space-y-2 text-center">
+            <div className="text-2xl">⚠️</div>
+            <h3 className="text-sm font-bold text-amber-300">
+              Spending requests unavailable
+            </h3>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {agent.status === 'PAUSED'
+                ? 'Spending requests are unavailable while this agent is paused. Resume the agent to enable spending requests.'
+                : 'This agent has been terminated and cannot submit new spending requests.'}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end pt-3 border-t border-slate-700/60">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const policy = agent.spendingPolicy;
 
-  const formatCusdString = (val: string): string => {
-    if (!val) return '$0.00 cUSD';
-    const trimmed = val.trim();
-    if (!/^\d+(\.\d+)?$/.test(trimmed)) return `$${trimmed} cUSD`;
-    const [whole, dec = ''] = trimmed.split('.');
-    const paddedDec = dec.length === 0 ? '00' : dec.length === 1 ? `${dec}0` : dec;
-    return `$${whole}.${paddedDec} cUSD`;
+  const handleAmountChange = (val: string) => {
+    setAmount(val);
+    setIsFormModified(true);
+    setFormError(null);
   };
 
-  const validateForm = (): boolean => {
+  const handleRecipientChange = (val: string) => {
+    setRecipient(val);
+    setIsFormModified(true);
     setFormError(null);
+  };
 
-    const trimmedAmount = amount.trim();
-    if (!trimmedAmount) {
-      setFormError('Amount is required.');
-      return false;
-    }
-
-    if (!/^\d+(\.\d+)?$/.test(trimmedAmount)) {
-      setFormError('Amount must be a valid positive decimal number (e.g. "8.50").');
-      return false;
-    }
-
-    // Check non-zero
-    const [whole, dec = ''] = trimmedAmount.split('.');
-    if (whole === '0' && (dec === '' || /^0+$/.test(dec))) {
-      setFormError('Amount must be greater than zero.');
-      return false;
-    }
-
-    const trimmedRecipient = recipient.trim();
-    if (!trimmedRecipient) {
-      setFormError('Recipient address is required.');
-      return false;
-    }
-
-    if (!isAddress(trimmedRecipient)) {
-      setFormError('Recipient must be a valid 40-character hex EVM address (0x...).');
-      return false;
-    }
-
-    if (purpose.length > 500) {
-      setFormError('Purpose cannot exceed 500 characters.');
-      return false;
-    }
-
-    return true;
+  const handlePurposeChange = (val: string) => {
+    setPurpose(val);
+    setIsFormModified(true);
   };
 
   const handleProceedToReview = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    const validation = validateSpendingForm(amount, recipient, purpose);
+    if (!validation.valid) {
+      setFormError(validation.error);
+      return;
+    }
+    // If form inputs were modified after initial generation, regenerate idempotency key
+    if (isFormModified) {
+      setIdempotencyKey(generateIdempotencyKey());
+      setIsFormModified(false);
+    }
     setStep('REVIEW');
   };
 
@@ -112,7 +143,10 @@ export default function SpendingRequestDrawer({
   };
 
   const handleSubmitRequest = async () => {
+    if (isSubmitting) return;
+
     try {
+      setIsSubmitting(true);
       setStep('SUBMITTING');
       setSubmissionError(null);
 
@@ -142,7 +176,7 @@ export default function SpendingRequestDrawer({
         return;
       }
 
-      // Handle raw HTTP status errors
+      // Handle raw HTTP status errors when json.data is not present
       if (res.status === 401) {
         throw new Error('Your session has expired. Please sign in again.');
       }
@@ -164,6 +198,8 @@ export default function SpendingRequestDrawer({
       const msg = err instanceof Error ? err.message : 'Unable to submit request.';
       setSubmissionError(msg);
       setStep('ERROR');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -211,7 +247,7 @@ export default function SpendingRequestDrawer({
                   type="text"
                   placeholder="8.50"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => handleAmountChange(e.target.value)}
                   className="w-full pl-7 pr-16 py-2 text-xs rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 font-mono focus:outline-none focus:border-emerald-500"
                 />
                 <span className="absolute right-3 top-2.5 text-xs font-mono text-slate-400">cUSD</span>
@@ -231,7 +267,7 @@ export default function SpendingRequestDrawer({
                 type="text"
                 placeholder="0x71A4...C92F"
                 value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
+                onChange={(e) => handleRecipientChange(e.target.value)}
                 className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 font-mono focus:outline-none focus:border-emerald-500"
               />
               <p className="text-[11px] text-slate-400">
@@ -249,7 +285,7 @@ export default function SpendingRequestDrawer({
                 type="text"
                 placeholder="e.g. Market research data subscription"
                 value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
+                onChange={(e) => handlePurposeChange(e.target.value)}
                 maxLength={500}
                 className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
               />
@@ -337,8 +373,9 @@ export default function SpendingRequestDrawer({
               </button>
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={handleSubmitRequest}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow flex items-center gap-1.5 disabled:opacity-50"
               >
                 <span>Submit request</span>
               </button>
@@ -368,7 +405,7 @@ export default function SpendingRequestDrawer({
                 <div className="text-2xl">✓</div>
                 <h3 className="text-sm font-bold text-emerald-300">Spending request reserved</h3>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  The request passed policy and budget checks and has entered the controlled payment workflow.
+                  Budget reserved. This payment has not settled on-chain; funds are encumbered in the agent&apos;s spending budget pending execution.
                 </p>
                 {result.reservation && (
                   <div className="pt-2 text-[10px] font-mono text-emerald-400">
@@ -385,7 +422,7 @@ export default function SpendingRequestDrawer({
                 <div className="space-y-1">
                   <h3 className="text-sm font-bold text-amber-300">Approval required</h3>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    This request exceeds automatic limits and requires human approval before controlled execution can proceed.
+                    This request exceeds automatic limits and requires human approval before controlled execution can proceed. Daily budget is not reserved until approved.
                   </p>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-xs font-mono text-left space-y-1">
@@ -501,8 +538,15 @@ export default function SpendingRequestDrawer({
               </button>
               <button
                 type="button"
+                onClick={handleSubmitRequest}
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow"
+              >
+                Retry
+              </button>
+              <button
+                type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-900/80 hover:bg-rose-800 text-white transition-colors"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
               >
                 Close
               </button>
