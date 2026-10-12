@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Agent } from '@/lib/agent/types';
 
 export type LifecycleActionType = 'pause' | 'resume' | 'terminate';
@@ -24,6 +24,17 @@ export default function LifecycleModal({
   const [confirmName, setConfirmName] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSubmitting) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isSubmitting, onClose]);
 
   if (!isOpen || !actionType || !agent) return null;
 
@@ -74,10 +85,21 @@ export default function LifecycleModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="lifecycle-modal-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+    >
+      <div className="w-full max-w-md rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-slate-700 pb-3">
           <h2
+            id="lifecycle-modal-title"
             className={`text-base font-bold ${
               isTerminate ? 'text-rose-400' : isPause ? 'text-amber-400' : 'text-emerald-400'
             }`}
@@ -87,7 +109,8 @@ export default function LifecycleModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors text-sm p-1"
+            aria-label="Close dialog"
+            className="text-slate-400 hover:text-white transition-colors text-sm p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
             ✕
           </button>
@@ -137,7 +160,7 @@ export default function LifecycleModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`flex-1 py-2 px-4 rounded-lg font-semibold text-xs text-white transition-colors shadow disabled:opacity-50 ${
+              className={`flex-1 py-2 px-4 rounded-lg font-semibold text-xs text-white transition-colors shadow disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-slate-400 ${
                 isTerminate
                   ? 'bg-rose-600 hover:bg-rose-500'
                   : isPause
@@ -156,7 +179,7 @@ export default function LifecycleModal({
             <button
               type="button"
               onClick={onClose}
-              className="py-2 px-4 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium text-xs transition-colors"
+              className="py-2 px-4 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               Cancel
             </button>

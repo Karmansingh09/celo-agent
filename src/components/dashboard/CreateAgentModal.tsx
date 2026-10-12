@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface CreateAgentModalProps {
   isOpen: boolean;
@@ -22,6 +22,17 @@ export default function CreateAgentModal({
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSubmitting) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isSubmitting, onClose]);
 
   if (!isOpen) return null;
 
@@ -133,16 +144,27 @@ export default function CreateAgentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-6">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-agent-modal-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+    >
+      <div className="w-full max-w-lg rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-slate-700 pb-4">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+          <h2 id="create-agent-modal-title" className="text-lg font-bold text-white flex items-center gap-2">
             <span>🤖 Create Autonomous Agent</span>
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors text-sm p-1"
+            aria-label="Close dialog"
+            className="text-slate-400 hover:text-white transition-colors text-sm p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
             ✕
           </button>
@@ -265,14 +287,14 @@ export default function CreateAgentModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-2 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shadow disabled:opacity-50"
+              className="flex-1 py-2 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shadow disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
               {isSubmitting ? 'Creating...' : 'Create Agent'}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="py-2 px-4 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium text-xs transition-colors"
+              className="py-2 px-4 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               Cancel
             </button>

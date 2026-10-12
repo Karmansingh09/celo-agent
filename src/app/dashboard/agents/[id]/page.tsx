@@ -347,14 +347,14 @@ export default function AgentDetailPage() {
         </div>
 
         {/* Quick Header Lifecycle Actions */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {agent.status === 'ACTIVE' && (
             <>
               <button
                 type="button"
                 aria-label="Request spending"
                 onClick={() => setIsSpendingDrawerOpen(true)}
-                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm"
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
                 Request Spending
               </button>
@@ -362,7 +362,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('pause')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               >
                 Pause Agent
               </button>
@@ -370,7 +370,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('terminate')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 hover:border-rose-800 transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 hover:border-rose-800 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 Terminate Agent
               </button>
@@ -389,7 +389,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('resume')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
                 Resume Agent
               </button>
@@ -397,7 +397,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('terminate')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 hover:border-rose-800 transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 hover:border-rose-800 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 Terminate Agent
               </button>

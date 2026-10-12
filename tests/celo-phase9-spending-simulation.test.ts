@@ -401,4 +401,54 @@ describe('Phase 9.6: Controlled Spending Request & Payment Simulation UI Invaria
     expect(content).toContain('Spending requests are unavailable while this agent is paused.');
     expect(content).toContain('This agent has been terminated and cannot submit new spending requests.');
   });
+
+  it('14. Phase 9.7: Modal accessibility (role="dialog", aria-modal, Escape listeners, max-h safeguards)', () => {
+    const modalFiles = [
+      '../src/components/dashboard/CreateAgentModal.tsx',
+      '../src/components/dashboard/LifecycleModal.tsx',
+      '../src/components/dashboard/ApprovalConfirmationModal.tsx',
+      '../src/components/dashboard/ApprovalRejectModal.tsx',
+      '../src/components/dashboard/SpendingRequestDrawer.tsx',
+    ];
+
+    for (const relPath of modalFiles) {
+      const fullPath = path.resolve(__dirname, relPath);
+      const content = fs.readFileSync(fullPath, 'utf-8');
+
+      // Verify modal role and modal attribute
+      expect(content).toContain('role="dialog"');
+      expect(content).toContain('aria-modal="true"');
+
+      // Verify Escape key handling
+      expect(content).toContain("'Escape'");
+      expect(content).toContain("addEventListener('keydown'");
+
+      // Verify scroll / max-h safeguard
+      expect(content).toContain('max-h-[90vh]');
+      expect(content).toContain('overflow-y-auto');
+
+      // Verify backdrop dismissal
+      expect(content).toContain('e.target === e.currentTarget');
+    }
+  });
+
+  it('15. Phase 9.7: Responsive header and navigation wrapping safeguards', () => {
+    const shellPath = path.resolve(__dirname, '../src/components/dashboard/DashboardShell.tsx');
+    const shellContent = fs.readFileSync(shellPath, 'utf-8');
+    expect(shellContent).toContain('aria-label="Dashboard navigation"');
+    expect(shellContent).toContain('flex-wrap');
+
+    const walletPath = path.resolve(__dirname, '../src/components/dashboard/WalletStatus.tsx');
+    const walletContent = fs.readFileSync(walletPath, 'utf-8');
+    expect(walletContent).toContain('hidden sm:inline');
+    expect(walletContent).toContain('sm:hidden');
+
+    const agentCardPath = path.resolve(__dirname, '../src/components/dashboard/AgentCard.tsx');
+    const agentCardContent = fs.readFileSync(agentCardPath, 'utf-8');
+    expect(agentCardContent).toContain('flex-wrap');
+
+    const agentDetailPath = path.resolve(__dirname, '../src/app/dashboard/agents/[id]/page.tsx');
+    const agentDetailContent = fs.readFileSync(agentDetailPath, 'utf-8');
+    expect(agentDetailContent).toContain('flex-wrap');
+  });
 });

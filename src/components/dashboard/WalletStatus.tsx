@@ -27,7 +27,7 @@ export default function WalletStatus() {
       {/* Network Badge */}
       {chainId !== null && (
         <span
-          className={`px-2.5 py-1 rounded-full font-mono font-medium flex items-center gap-1.5 ${
+          className={`px-2.5 py-1 rounded-full font-mono font-medium flex items-center gap-1.5 shrink-0 ${
             isSupportedChain
               ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
               : 'bg-amber-950/80 text-amber-300 border border-amber-800'
@@ -39,13 +39,14 @@ export default function WalletStatus() {
               isSupportedChain ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
             }`}
           />
-          {networkLabel}
+          <span className="hidden sm:inline">{networkLabel}</span>
+          <span className="sm:hidden">{isCeloSepolia ? 'Sepolia' : isCeloMainnet ? 'Mainnet' : 'Chain'}</span>
         </span>
       )}
 
       {/* Address Badge */}
       <div
-        className="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-200 font-mono flex items-center gap-1.5"
+        className="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-200 font-mono flex items-center gap-1.5 shrink-0"
         title={displayAddress}
       >
         <span

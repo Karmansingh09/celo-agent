@@ -127,24 +127,24 @@ export default function AgentCard({
       </div>
 
       {/* Actions Bar */}
-      <div className="pt-3 border-t border-slate-700/60 flex items-center justify-between gap-2">
+      <div className="pt-3 border-t border-slate-700/60 flex flex-wrap items-center justify-between gap-2">
         <Link
           href={`/dashboard/agents/${agent.id}`}
-          className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors inline-flex items-center gap-1"
+          className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
         >
           <span>View agent</span>
           <span>→</span>
         </Link>
 
         {/* Lifecycle Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {agent.status === 'ACTIVE' && (
             <>
               <button
                 type="button"
                 disabled={isActionLoading}
                 onClick={() => onPause(agent)}
-                className="px-2.5 py-1 text-[11px] font-medium rounded bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition-colors disabled:opacity-50"
+                className="px-2.5 py-1 text-[11px] font-medium rounded bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               >
                 Pause
               </button>
@@ -152,7 +152,7 @@ export default function AgentCard({
                 type="button"
                 disabled={isActionLoading}
                 onClick={() => onTerminate(agent)}
-                className="px-2.5 py-1 text-[11px] font-medium rounded bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 hover:border-rose-800 transition-colors disabled:opacity-50"
+                className="px-2.5 py-1 text-[11px] font-medium rounded bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 hover:border-rose-800 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 Terminate
               </button>
@@ -165,7 +165,7 @@ export default function AgentCard({
                 type="button"
                 disabled={isActionLoading}
                 onClick={() => onResume(agent)}
-                className="px-2.5 py-1 text-[11px] font-medium rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 transition-colors disabled:opacity-50"
+                className="px-2.5 py-1 text-[11px] font-medium rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
                 Resume
               </button>
@@ -173,7 +173,7 @@ export default function AgentCard({
                 type="button"
                 disabled={isActionLoading}
                 onClick={() => onTerminate(agent)}
-                className="px-2.5 py-1 text-[11px] font-medium rounded bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 hover:border-rose-800 transition-colors disabled:opacity-50"
+                className="px-2.5 py-1 text-[11px] font-medium rounded bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 hover:border-rose-800 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 Terminate
               </button>

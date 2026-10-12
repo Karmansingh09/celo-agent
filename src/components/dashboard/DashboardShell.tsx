@@ -90,11 +90,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <WalletStatus />
           <button
             onClick={logout}
-            className="py-1.5 px-3 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors"
+            className="py-1.5 px-3 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
             Sign Out
           </button>
@@ -102,7 +102,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </div>
 
       {/* Primary Sub-Navigation Bar */}
-      <nav className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800/60 text-xs font-medium">
+      <nav
+        aria-label="Dashboard navigation"
+        className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800/60 text-xs font-medium"
+      >
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           const isUpcoming = item.status === 'upcoming';
@@ -111,7 +114,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3.5 py-2 rounded-lg flex items-center gap-2 transition-colors whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-lg flex items-center gap-2 transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                 isActive
                   ? 'bg-slate-800 text-emerald-400 border border-slate-700 font-semibold'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'

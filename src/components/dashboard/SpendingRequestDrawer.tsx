@@ -57,21 +57,42 @@ export default function SpendingRequestDrawer({
     }
   }, [isOpen]);
 
+  // Keyboard Escape listener
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && step !== 'SUBMITTING') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, step, onClose]);
+
   if (!isOpen) return null;
 
   // Lifecycle check: only ACTIVE agents can submit spending requests
   if (agent.status !== 'ACTIVE') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-        <div className="w-full max-w-lg rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="spending-request-drawer-title"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+      >
+        <div className="w-full max-w-lg rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between border-b border-slate-700 pb-3">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <h2 id="spending-request-drawer-title" className="text-base font-bold text-white flex items-center gap-2">
               <span>Controlled Spending Request</span>
             </h2>
             <button
               type="button"
               onClick={onClose}
-              className="text-slate-400 hover:text-white transition-colors text-sm p-1"
+              aria-label="Close dialog"
+              className="text-slate-400 hover:text-white transition-colors text-sm p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
               ✕
             </button>
@@ -93,7 +114,7 @@ export default function SpendingRequestDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+              className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               Close
             </button>
@@ -204,12 +225,22 @@ export default function SpendingRequestDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="spending-request-drawer-active-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && step !== 'SUBMITTING') {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+    >
       <div className="w-full max-w-lg rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
         {/* Drawer Header */}
         <div className="flex items-center justify-between border-b border-slate-700 pb-3">
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <h2 id="spending-request-drawer-active-title" className="text-base font-bold text-white flex items-center gap-2">
               <span>Controlled Spending Request</span>
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -220,7 +251,8 @@ export default function SpendingRequestDrawer({
             type="button"
             disabled={step === 'SUBMITTING'}
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors text-sm p-1 disabled:opacity-50"
+            aria-label="Close dialog"
+            className="text-slate-400 hover:text-white transition-colors text-sm p-1 rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
             ✕
           </button>

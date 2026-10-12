@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Agent } from '@/lib/agent/types';
 import { PendingApprovalItem } from './ApprovalCard';
 
@@ -22,6 +22,17 @@ export default function ApprovalRejectModal({
   const [reason, setReason] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSubmitting) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isSubmitting, onClose]);
 
   if (!isOpen || !approval) return null;
 
@@ -53,17 +64,28 @@ export default function ApprovalRejectModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="approval-reject-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+    >
+      <div className="w-full max-w-md rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-slate-700 pb-3">
-          <h2 className="text-base font-bold text-rose-400 flex items-center gap-2">
+          <h2 id="approval-reject-title" className="text-base font-bold text-rose-400 flex items-center gap-2">
             <span>Reject Spending Request?</span>
           </h2>
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="text-slate-400 hover:text-white transition-colors text-sm p-1"
+            aria-label="Close dialog"
+            className="text-slate-400 hover:text-white transition-colors text-sm p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
           >
             ✕
           </button>
@@ -104,7 +126,7 @@ export default function ApprovalRejectModal({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Provide context for why this request is denied (e.g. Unplanned recipient or limit exhausted)..."
-              className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 resize-none"
+              className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 resize-none font-sans"
             />
             <div className="flex justify-between text-[10px] text-slate-500 font-mono">
               <span>Recorded in agent audit trail</span>
@@ -117,14 +139,14 @@ export default function ApprovalRejectModal({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+              className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 transition-colors shadow flex items-center gap-2"
+              className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 transition-colors shadow flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
             >
               {isSubmitting && (
                 <span className="w-3.5 h-3.5 border-2 border-rose-300 border-t-transparent rounded-full animate-spin" />
