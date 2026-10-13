@@ -801,6 +801,11 @@ h2 em, h3 em {
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
+.s.active i {
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 28%, transparent);
+  transform: scale(1.12);
+}
+
 .capt {
   margin: 30px 0 0;
   text-align: center;
