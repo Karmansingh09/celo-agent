@@ -235,15 +235,15 @@ export default function ApprovalsPage() {
   return (
     <div className="space-y-8">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.08]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--glass-b)]">
         <div className="space-y-1">
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-2xl sm:text-3xl font-normal text-[var(--ink)] tracking-tight flex items-center gap-2.5">
             <span>Spending Approvals</span>
-            <span className="px-2 py-0.5 text-xs font-mono font-medium rounded-full bg-slate-900/60 text-slate-400 border border-white/[0.08]">
+            <span className="chip">
               {queueItems.length} pending
             </span>
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs sm:text-sm text-[var(--muted)]">
             Human-in-the-loop decision queue for autonomous agent payment requests exceeding auto-approval limits.
           </p>
         </div>
@@ -252,7 +252,7 @@ export default function ApprovalsPage() {
           type="button"
           onClick={() => fetchApprovals()}
           disabled={isLoading || isSubmittingAction}
-          className="glass-panel px-3.5 py-1.5 rounded-lg text-slate-300 hover:text-white text-xs font-medium transition-all disabled:opacity-50 self-start sm:self-auto flex items-center gap-1.5"
+          className="btn h-9 px-4 text-xs font-medium self-start sm:self-auto flex items-center gap-1.5"
           title="Refresh approval queue"
         >
           <span className={isLoading ? 'animate-spin' : ''}>↻</span>

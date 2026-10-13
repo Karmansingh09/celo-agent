@@ -234,17 +234,17 @@ export default function SpendingRequestDrawer({
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md"
     >
-      <div className="w-full max-w-lg rounded-2xl glass-panel-elevated p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg rounded-3xl glass p-7 space-y-5 max-h-[90vh] overflow-y-auto">
         {/* Drawer Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <div className="flex items-center justify-between border-b border-[var(--glass-b)] pb-3">
           <div>
-            <h2 id="spending-request-drawer-active-title" className="text-base font-bold text-white flex items-center gap-2">
+            <h2 id="spending-request-drawer-active-title" className="name text-2xl font-normal text-[var(--ink)] flex items-center gap-2">
               <span>Controlled Spending Request</span>
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Simulate spending evaluation for <strong className="text-emerald-400 font-semibold">{agent.name}</strong>
+            <p className="text-xs text-[var(--muted)] mt-0.5">
+              Simulate spending evaluation for <strong className="text-[var(--accent)] font-semibold">{agent.name}</strong>
             </p>
           </div>
           <button
@@ -252,7 +252,7 @@ export default function SpendingRequestDrawer({
             disabled={step === 'SUBMITTING'}
             onClick={onClose}
             aria-label="Close dialog"
-            className="text-slate-400 hover:text-white transition-colors text-sm p-1 rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="text-[var(--muted)] hover:text-[var(--ink)] text-sm p-1 rounded disabled:opacity-50"
           >
             ✕
           </button>
@@ -345,17 +345,17 @@ export default function SpendingRequestDrawer({
             </div>
 
             {/* Form Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--glass-b)]">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] transition-all"
+                className="btn h-10 px-4 text-xs font-medium"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all shadow"
+                className="btn solid h-10 px-5 text-xs font-semibold"
               >
                 Review request →
               </button>
@@ -366,40 +366,40 @@ export default function SpendingRequestDrawer({
         {/* STEP 2: REVIEW DETAILS */}
         {step === 'REVIEW' && (
           <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2.5 text-xs font-mono">
+            <div className="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] space-y-2.5 text-xs font-mono">
               <div className="flex justify-between items-center">
-                <span className="text-slate-400 font-sans">Agent:</span>
-                <span className="text-white font-bold">{agent.name}</span>
+                <span className="text-[var(--muted)] font-sans">Agent:</span>
+                <span className="text-[var(--ink)] font-bold">{agent.name}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-400 font-sans">Amount:</span>
-                <span className="text-emerald-400 font-bold text-sm tabular-nums">
+                <span className="text-[var(--muted)] font-sans">Amount:</span>
+                <span className="text-[var(--ok)] font-bold text-sm tabular-nums">
                   {formatCusdString(amount)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-400 font-sans">Recipient:</span>
-                <span className="text-slate-300" title={recipient}>
-                  {recipient.slice(0, 10)}...{recipient.slice(-6)}
+                <span className="text-[var(--muted)] font-sans">Recipient:</span>
+                <span className="text-[var(--ink)]" title={recipient}>
+                  {recipient.slice(0, 10)}…{recipient.slice(-6)}
                 </span>
               </div>
               {purpose.trim() && (
-                <div className="flex justify-between items-center pt-1 border-t border-white/[0.06]">
-                  <span className="text-slate-400 font-sans">Purpose:</span>
-                  <span className="text-slate-300 truncate max-w-[240px]">{purpose}</span>
+                <div className="flex justify-between items-center pt-1 border-t border-[var(--glass-b)]">
+                  <span className="text-[var(--muted)] font-sans">Purpose:</span>
+                  <span className="text-[var(--ink)] truncate max-w-[240px]">{purpose}</span>
                 </div>
               )}
             </div>
 
-            <div className="p-3 rounded-lg bg-slate-900/40 border border-white/[0.06] text-[11px] text-slate-400 leading-relaxed">
+            <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[11px] text-[var(--muted)] leading-relaxed">
               ℹ️ This spending request will be evaluated against the agent&apos;s current spending policy and daily budget in the CeloAgent control plane.
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--glass-b)]">
               <button
                 type="button"
                 onClick={handleBackToForm}
-                className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] transition-all"
+                className="btn h-10 px-4 text-xs font-medium"
               >
                 ← Back
               </button>
@@ -407,7 +407,7 @@ export default function SpendingRequestDrawer({
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleSubmitRequest}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all shadow flex items-center gap-1.5 disabled:opacity-50"
+                className="btn solid h-10 px-5 text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
               >
                 <span>Submit request</span>
               </button>
@@ -418,10 +418,10 @@ export default function SpendingRequestDrawer({
         {/* STEP 3: SUBMITTING INDICATOR */}
         {step === 'SUBMITTING' && (
           <div className="py-10 text-center space-y-4">
-            <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto" />
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-white">Evaluating spending request...</h3>
-              <p className="text-xs text-slate-400">
+              <h3 className="name text-base font-normal text-[var(--ink)]">Evaluating spending request…</h3>
+              <p className="text-xs text-[var(--muted)]">
                 Running policy evaluator, checking auto-approval limits, and verifying daily budget.
               </p>
             </div>
@@ -433,14 +433,14 @@ export default function SpendingRequestDrawer({
           <div className="space-y-4">
             {/* RESERVED Result */}
             {result.outcome === 'RESERVED' && (
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2 text-center">
+              <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2 text-center">
                 <div className="text-2xl">✓</div>
-                <h3 className="text-sm font-bold text-emerald-300">Spending request reserved</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <h3 className="name text-base font-normal text-emerald-800 dark:text-emerald-300">Spending request reserved</h3>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
                   Budget reserved. This payment has not settled on-chain; funds are encumbered in the agent&apos;s spending budget pending execution.
                 </p>
                 {result.reservation && (
-                  <div className="pt-2 text-[10px] font-mono text-emerald-400">
+                  <div className="pt-2 text-[11px] font-mono text-[var(--accent)]">
                     Reservation ID: {result.reservation.id}
                   </div>
                 )}
@@ -449,23 +449,23 @@ export default function SpendingRequestDrawer({
 
             {/* REQUIRE_USER_APPROVAL Result */}
             {result.outcome === 'REQUIRE_USER_APPROVAL' && (
-              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-3 text-center">
+              <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-3 text-center">
                 <div className="text-2xl">⏳</div>
                 <div className="space-y-1">
-                  <h3 className="text-sm font-bold text-amber-300">Approval required</h3>
-                  <p className="text-xs text-slate-300 leading-relaxed">
+                  <h3 className="name text-base font-normal text-amber-800 dark:text-amber-300">Approval required</h3>
+                  <p className="text-xs text-[var(--muted)] leading-relaxed">
                     This request exceeds automatic limits and requires human approval before controlled execution can proceed. Daily budget is not reserved until approved.
                   </p>
                 </div>
-                <div className="p-2.5 rounded-lg bg-slate-900/60 border border-white/[0.06] text-xs font-mono text-left space-y-1">
+                <div className="p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-xs font-mono text-left space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Amount:</span>
-                    <span className="text-white font-bold tabular-nums">{formatCusdString(amount)}</span>
+                    <span className="text-[var(--muted)]">Amount:</span>
+                    <span className="text-[var(--ink)] font-bold tabular-nums">{formatCusdString(amount)}</span>
                   </div>
                   {result.pendingApproval?.requestId && (
                     <div className="flex justify-between text-[11px]">
-                      <span className="text-slate-400">Pending ID:</span>
-                      <span className="text-amber-400 truncate max-w-[200px]" title={result.pendingApproval.requestId}>
+                      <span className="text-[var(--muted)]">Pending ID:</span>
+                      <span className="text-[var(--ink)] truncate max-w-[200px]" title={result.pendingApproval.requestId}>
                         {result.pendingApproval.requestId}
                       </span>
                     </div>
@@ -474,7 +474,7 @@ export default function SpendingRequestDrawer({
                 <div className="pt-2 flex justify-center">
                   <Link
                     href="/dashboard/approvals"
-                    className="px-4 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-semibold text-xs transition-all shadow"
+                    className="btn solid h-10 px-5 text-xs font-semibold"
                   >
                     Review in Approvals queue →
                   </Link>
@@ -484,10 +484,10 @@ export default function SpendingRequestDrawer({
 
             {/* POLICY_DENIED Result */}
             {result.outcome === 'POLICY_DENIED' && (
-              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2 text-center">
+              <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-2 text-center">
                 <div className="text-2xl">✕</div>
-                <h3 className="text-sm font-bold text-rose-300">Request denied</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <h3 className="name text-base font-normal text-rose-800 dark:text-rose-300">Request denied</h3>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
                   {result.reason || "Your agent's spending policy does not allow this request."}
                 </p>
               </div>
@@ -495,10 +495,10 @@ export default function SpendingRequestDrawer({
 
             {/* BUDGET_DENIED Result */}
             {result.outcome === 'BUDGET_DENIED' && (
-              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2 text-center">
+              <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-2 text-center">
                 <div className="text-2xl">⚠️</div>
-                <h3 className="text-sm font-bold text-rose-300">Budget unavailable</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <h3 className="name text-base font-normal text-rose-800 dark:text-rose-300">Budget unavailable</h3>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
                   {result.reason || 'This request cannot proceed because the agent does not have enough available spending budget.'}
                 </p>
               </div>
@@ -506,10 +506,10 @@ export default function SpendingRequestDrawer({
 
             {/* DUPLICATE_IN_PROGRESS Result */}
             {result.outcome === 'DUPLICATE_IN_PROGRESS' && (
-              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2 text-center">
+              <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2 text-center">
                 <div className="text-2xl">⏳</div>
-                <h3 className="text-sm font-bold text-amber-300">Request already in progress</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <h3 className="name text-base font-normal text-amber-800 dark:text-amber-300">Request already in progress</h3>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
                   The same spending request is currently being processed.
                 </p>
               </div>
@@ -517,10 +517,10 @@ export default function SpendingRequestDrawer({
 
             {/* DUPLICATE_COMMITTED Result */}
             {result.outcome === 'DUPLICATE_COMMITTED' && (
-              <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-2 text-center">
+              <div className="p-5 rounded-2xl bg-sky-500/10 border border-sky-500/20 space-y-2 text-center">
                 <div className="text-2xl">ℹ️</div>
-                <h3 className="text-sm font-bold text-sky-300">Request already processed</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <h3 className="name text-base font-normal text-sky-800 dark:text-sky-300">Request already processed</h3>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
                   An identical spending request has already reached a committed state.
                 </p>
               </div>
@@ -528,20 +528,20 @@ export default function SpendingRequestDrawer({
 
             {/* IDEMPOTENCY_CONFLICT Result */}
             {result.outcome === 'IDEMPOTENCY_CONFLICT' && (
-              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2 text-center">
+              <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-2 text-center">
                 <div className="text-2xl">⚠️</div>
-                <h3 className="text-sm font-bold text-rose-300">Request conflict</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <h3 className="name text-base font-normal text-rose-800 dark:text-rose-300">Request conflict</h3>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
                   This request key is already associated with different spending details. Please create a new request.
                 </p>
               </div>
             )}
 
-            <div className="flex items-center justify-end pt-3 border-t border-white/[0.08]">
+            <div className="flex items-center justify-end pt-3 border-t border-[var(--glass-b)]">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-200 border border-white/[0.08] transition-all"
+                className="btn h-10 px-5 text-xs font-semibold"
               >
                 Done
               </button>
@@ -552,33 +552,33 @@ export default function SpendingRequestDrawer({
         {/* STEP 5: ERROR STATE */}
         {step === 'ERROR' && (
           <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-rose-950/20 border border-rose-500/30 text-rose-300 text-xs space-y-2">
+            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs space-y-2">
               <div className="font-bold flex items-center gap-1.5">
                 <span>⚠️</span>
                 <span>Submission Error</span>
               </div>
-              <p className="text-slate-300 leading-relaxed">{submissionError}</p>
+              <p className="text-[var(--muted)] leading-relaxed">{submissionError}</p>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--glass-b)]">
               <button
                 type="button"
                 onClick={handleBackToForm}
-                className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] transition-all"
+                className="btn h-10 px-4 text-xs font-medium"
               >
                 ← Back to Form
               </button>
               <button
                 type="button"
                 onClick={handleSubmitRequest}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all shadow"
+                className="btn solid h-10 px-5 text-xs font-semibold"
               >
                 Retry
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-200 border border-white/[0.08] transition-all"
+                className="btn h-10 px-4 text-xs font-medium"
               >
                 Close
               </button>

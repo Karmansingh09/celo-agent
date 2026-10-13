@@ -12,7 +12,7 @@ export default function WalletStatus() {
     return null;
   }
 
-  const shortened = `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`;
+  const shortened = `${displayAddress.slice(0, 6)}…${displayAddress.slice(-4)}`;
 
   const isCeloSepolia = chainId === CELO_SEPOLIA_CHAIN_ID;
   const isCeloMainnet = chainId === CELO_MAINNET_CHAIN_ID;
@@ -27,16 +27,16 @@ export default function WalletStatus() {
       {/* Network Badge */}
       {chainId !== null && (
         <span
-          className={`px-2.5 py-1 rounded-full font-mono text-[11px] font-medium flex items-center gap-1.5 shrink-0 ${
+          className={`px-3 py-1 rounded-full font-mono text-[11px] font-medium flex items-center gap-1.5 shrink-0 border ${
             isSupportedChain
-              ? 'bg-[rgba(20,29,42,0.7)] text-emerald-300 border border-emerald-500/30 shadow-[0_0_12px_-3px_rgba(134,227,176,0.2)]'
-              : 'bg-[rgba(20,29,42,0.7)] text-amber-300 border border-amber-500/30'
+              ? 'bg-[var(--glass)] text-[var(--ok)] border-[var(--glass-b)]'
+              : 'bg-[var(--glass)] text-[var(--warn)] border-[var(--glass-b)]'
           }`}
           title={`Chain ID: ${chainId}`}
         >
           <span
             className={`w-1.5 h-1.5 rounded-full ${
-              isSupportedChain ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+              isSupportedChain ? 'bg-[var(--ok)] animate-pulse' : 'bg-[var(--warn)]'
             }`}
           />
           <span className="hidden sm:inline">{networkLabel}</span>
@@ -46,12 +46,12 @@ export default function WalletStatus() {
 
       {/* Address Badge */}
       <div
-        className="px-3 py-1 rounded-full bg-[rgba(20,29,42,0.7)] border border-[rgba(180,205,220,0.14)] text-slate-200 font-mono text-[11px] flex items-center gap-1.5 shrink-0 shadow-sm"
+        className="px-3 py-1 rounded-full bg-[var(--glass)] border border-[var(--glass-b)] text-[var(--ink)] font-mono text-[11px] flex items-center gap-1.5 shrink-0 shadow-sm"
         title={displayAddress}
       >
         <span
           className={`w-1.5 h-1.5 rounded-full ${
-            authenticated ? 'bg-emerald-400' : 'bg-slate-400'
+            authenticated ? 'bg-[var(--ok)]' : 'bg-[var(--muted)]'
           }`}
         />
         <span>{shortened}</span>

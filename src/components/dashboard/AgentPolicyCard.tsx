@@ -39,140 +39,109 @@ export default function AgentPolicyCard({ policy }: AgentPolicyCardProps) {
   const remainingRecipients = allowedRecipients.length - maxDisplayRecipients;
 
   return (
-    <div className="glass-panel p-6 rounded-xl space-y-6">
-      <div className="border-b border-white/[0.08] pb-3 flex items-center justify-between">
+    <div className="glass p-6 sm:p-7 rounded-3xl space-y-6">
+      <div className="border-b border-[var(--glass-b)] pb-3 flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+          <h3 className="text-sm font-bold text-[var(--ink)] uppercase tracking-wider font-mono flex items-center gap-2">
             <span>Spending Controls</span>
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Cryptographically enforced spending boundaries evaluated by the CeloAgent Policy Engine.
+          <p className="text-xs text-[var(--muted)] mt-0.5">
+            Server-enforced spending boundaries evaluated by the CeloAgent Policy Engine.
           </p>
         </div>
-        <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-900/60 text-slate-400 border border-white/[0.08]">
-          Read-Only
+        <span className="chip">
+          Read-Only Policy
         </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Max Per Transaction */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2">
-          <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
-            Maximum Per Transaction
+        <div className="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] space-y-1">
+          <div className="text-[11px] font-mono text-[var(--muted)] uppercase tracking-wider">
+            Max Per Transaction
           </div>
-          <div className="text-xl font-bold font-mono tabular-nums text-white">
-            ${policy.maxPerTransaction} <span className="text-xs text-slate-400 font-normal">cUSD</span>
+          <div className="num">
+            {policy.maxPerTransaction || '0.00'} <small>cUSD</small>
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            The largest controlled spending request this agent can make in a single request.
-          </p>
+          <p className="text-[10px] text-[var(--muted)]">Enforced per request</p>
         </div>
 
-        {/* Daily Spending Limit */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2">
-          <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
-            Daily Spending Limit
+        {/* Max Per Day */}
+        <div className="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] space-y-1">
+          <div className="text-[11px] font-mono text-[var(--muted)] uppercase tracking-wider">
+            Daily Budget Ceiling
           </div>
-          <div className="text-xl font-bold font-mono tabular-nums text-white">
-            ${policy.maxPerDay} <span className="text-xs text-slate-400 font-normal">cUSD</span>
+          <div className="num">
+            {policy.maxPerDay || '0.00'} <small>cUSD</small>
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            The maximum controlled spending allowed within the rolling 24-hour daily budget window.
-          </p>
+          <p className="text-[10px] text-[var(--muted)]">Resets UTC 00:00</p>
         </div>
 
         {/* Auto-Approval Threshold */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2">
-          <div className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider">
+        <div className="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] space-y-1">
+          <div className="text-[11px] font-mono text-[var(--muted)] uppercase tracking-wider">
             Auto-Approval Threshold
           </div>
-          <div className="text-xl font-bold font-mono tabular-nums text-emerald-300">
-            ≤ ${policy.autoApproveThreshold} <span className="text-xs text-slate-400 font-normal">cUSD</span>
+          <div className="num">
+            {policy.autoApproveThreshold || '0.00'} <small>cUSD</small>
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            Requests at or below this amount may proceed without manual human approval.
-          </p>
+          <p className="text-[10px] text-[var(--muted)]">Requests above this queue for sign-off</p>
         </div>
       </div>
 
-      {/* Allowed Recipients and Validity */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-        {/* Allowed Recipients */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
-              Allowed Recipients
+      {/* Allowed Recipients Section */}
+      <div className="space-y-3 pt-2 border-t border-[var(--glass-b)]">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-[var(--ink)] font-mono uppercase tracking-wider text-[11px]">
+            Whitelisted Recipients ({allowedRecipients.length})
+          </span>
+          {allowedRecipients.length === 0 && (
+            <span className="st w">
+              Any recipient
             </span>
-            <span className="text-[11px] font-mono text-slate-400">
-              {allowedRecipients.length === 0 ? 'Unrestricted' : `${allowedRecipients.length} configured`}
-            </span>
-          </div>
-
-          {allowedRecipients.length === 0 ? (
-            <div className="p-3 rounded-lg bg-slate-900/40 border border-white/[0.05] space-y-1">
-              <span className="text-xs font-semibold text-emerald-400">Any recipient</span>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Requests to any valid EVM recipient address are eligible for evaluation under policy limits.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {displayedRecipients.map((addr) => (
-                <div
-                  key={addr}
-                  className="flex items-center justify-between p-2 rounded bg-slate-900/60 border border-white/[0.06] text-xs font-mono"
-                >
-                  <span className="text-slate-300" title={addr}>
-                    {addr.slice(0, 10)}...{addr.slice(-6)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => copyAddress(addr)}
-                    className="text-[10px] text-slate-400 hover:text-emerald-400 transition-colors p-0.5"
-                    title="Copy Address"
-                  >
-                    {copiedAddr === addr ? '✓' : '📋'}
-                  </button>
-                </div>
-              ))}
-              {remainingRecipients > 0 && (
-                <div className="text-[11px] font-mono text-slate-400 italic pt-0.5">
-                  + {remainingRecipients} more address{remainingRecipients > 1 ? 'es' : ''}
-                </div>
-              )}
-            </div>
           )}
         </div>
 
-        {/* Policy Validity */}
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2.5 flex flex-col justify-between">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
-                Policy Validity
-              </span>
-              <span
-                className={`px-2 py-0.5 text-[10px] font-mono font-semibold rounded border ${
-                  isExpired
-                    ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
-                    : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                }`}
+        {allowedRecipients.length > 0 ? (
+          <div className="space-y-1.5 font-mono text-xs">
+            {displayedRecipients.map((recipient) => (
+              <div
+                key={recipient}
+                className="flex items-center justify-between p-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)]"
               >
-                {isExpired ? 'Expired' : 'Active'}
-              </span>
-            </div>
-            <div className="text-sm font-bold text-white font-mono">
-              {isExpired ? 'Expired' : `Valid until ${formatValidity(policy.validUntil)}`}
-            </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              Automated authorization boundary set upon agent creation. Requests beyond expiry are denied.
-            </p>
+                <span className="text-[var(--ink)] truncate max-w-[280px]" title={recipient}>
+                  {recipient}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copyAddress(recipient)}
+                  className="text-[11px] text-[var(--muted)] hover:text-[var(--ink)] px-2 py-0.5 rounded"
+                  title="Copy address"
+                >
+                  {copiedAddr === recipient ? '✓' : '⧉'}
+                </button>
+              </div>
+            ))}
+            {remainingRecipients > 0 && (
+              <div className="text-center text-xs text-[var(--muted)] pt-1">
+                + {remainingRecipients} more allowed {remainingRecipients === 1 ? 'recipient' : 'recipients'}
+              </div>
+            )}
           </div>
+        ) : (
+          <p className="text-xs text-[var(--muted)]">
+            No specific recipient whitelist configured. Agent may submit payment requests to any destination subject to amount limits.
+          </p>
+        )}
+      </div>
 
-          <div className="text-[11px] font-mono text-slate-500 pt-1 border-t border-white/[0.06]">
-            Timestamp: {policy.validUntil}
-          </div>
-        </div>
+      {/* Policy Expiry Footer */}
+      <div className="pt-2 border-t border-[var(--glass-b)] flex items-center justify-between text-xs font-mono">
+        <span className="text-[var(--muted)]">Policy Expiration:</span>
+        <span className={isExpired ? 'text-[var(--deny)] font-bold' : 'text-[var(--ink)]'}>
+          {policy.validUntil ? formatValidity(policy.validUntil) : 'No expiration date'}
+          {isExpired && ' (EXPIRED)'}
+        </span>
       </div>
     </div>
   );

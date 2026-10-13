@@ -327,21 +327,19 @@ export default function AgentDetailPage() {
       )}
 
       {/* Header Banner */}
-      <div className="glass-panel p-6 rounded-2xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="glass p-6 sm:p-7 rounded-3xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1.5">
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+            <h2 className="name text-3xl font-normal text-[var(--ink)] tracking-tight flex items-center gap-2">
               <span>🤖 {agent.name}</span>
             </h2>
             {statusConfig && (
-              <span
-                className={`px-2.5 py-0.5 rounded text-xs font-mono font-semibold border ${statusConfig.badgeClass}`}
-              >
+              <span className={statusConfig.badgeClass}>
                 {statusConfig.label}
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-300 max-w-2xl">
+          <p className="text-xs sm:text-sm text-[var(--muted)] max-w-2xl">
             {agent.description || 'Autonomous agent configured with spending boundaries and policy enforcement.'}
           </p>
         </div>
@@ -354,7 +352,7 @@ export default function AgentDetailPage() {
                 type="button"
                 aria-label="Request spending"
                 onClick={() => setIsSpendingDrawerOpen(true)}
-                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                className="btn solid h-9 px-4 text-xs font-semibold"
               >
                 Request Spending
               </button>
@@ -362,7 +360,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('pause')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-slate-800 text-amber-300 border border-white/[0.08] hover:border-amber-500/40 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                className="btn h-9 px-3.5 text-xs font-medium text-[var(--warn)] disabled:opacity-50"
               >
                 Pause Agent
               </button>
@@ -370,7 +368,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('terminate')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-rose-950/40 text-rose-300 border border-white/[0.08] hover:border-rose-500/40 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                className="btn h-9 px-3.5 text-xs font-medium text-[var(--deny)] disabled:opacity-50"
               >
                 Terminate Agent
               </button>
@@ -380,7 +378,7 @@ export default function AgentDetailPage() {
           {agent.status === 'PAUSED' && (
             <>
               <span
-                className="text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded"
+                className="st w"
                 title="Spending requests are blocked while agent is paused"
               >
                 Spending paused
@@ -389,7 +387,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('resume')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                className="btn h-9 px-3.5 text-xs font-medium text-[var(--ok)] disabled:opacity-50"
               >
                 Resume Agent
               </button>
@@ -397,7 +395,7 @@ export default function AgentDetailPage() {
                 type="button"
                 disabled={isActionExecuting}
                 onClick={() => handleOpenLifecycleModal('terminate')}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-rose-950/40 text-rose-300 border border-white/[0.08] hover:border-rose-500/40 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                className="btn h-9 px-3.5 text-xs font-medium text-[var(--deny)] disabled:opacity-50"
               >
                 Terminate Agent
               </button>
@@ -405,7 +403,7 @@ export default function AgentDetailPage() {
           )}
 
           {agent.status === 'TERMINATED' && (
-            <span className="text-xs font-mono text-slate-500 italic px-3 py-1.5 rounded bg-slate-900/60 border border-white/[0.06]">
+            <span className="st d">
               Retired from Service
             </span>
           )}

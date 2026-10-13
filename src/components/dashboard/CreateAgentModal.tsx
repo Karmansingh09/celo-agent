@@ -69,7 +69,7 @@ export default function CreateAgentModal({
     }
 
     if (!isDecimalStr(maxPerDay)) {
-      setFormError('Daily spending limit must be a positive decimal number (e.g. "25.00").');
+      setFormError('Maximum per day must be a positive decimal number (e.g. "25.00").');
       return false;
     }
 
@@ -78,18 +78,45 @@ export default function CreateAgentModal({
       return false;
     }
 
+    try {
+      const perTx = parseFloat(maxPerTransaction);
+      const perDay = parseFloat(maxPerDay);
+      const autoAppr = parseFloat(autoApproveThreshold);
+
+      if (perTx <= 0 || perDay <= 0 || autoAppr <= 0) {
+        setFormError('All spending limits must be greater than zero.');
+        return false;
+      }
+
+      if (perTx > perDay) {
+        setFormError('Maximum per transaction cannot exceed the daily spending limit.');
+        return false;
+      }
+
+      if (autoAppr > perTx) {
+        setFormError('Auto-approval threshold cannot exceed the maximum per transaction limit.');
+        return false;
+      }
+    } catch {
+      setFormError('Invalid numbers provided.');
+      return false;
+    }
+
     return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateInputs()) return;
+
+    if (!validateInputs()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFormError(null);
 
     try {
-      setIsSubmitting(true);
-      setFormError(null);
-
-      const payload: Record<string, unknown> = {
+      const payload = {
         name: name.trim(),
         description: description.trim() || undefined,
         walletAddress: walletAddress.trim() || undefined,
@@ -98,7 +125,6 @@ export default function CreateAgentModal({
           maxPerDay: maxPerDay.trim(),
           autoApproveThreshold: autoApproveThreshold.trim(),
           allowedRecipients: [],
-          validUntil: Date.now() + 365 * 86400 * 1000, // 1 year default
         },
       };
 
@@ -106,6 +132,7 @@ export default function CreateAgentModal({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify(payload),
       });
@@ -113,19 +140,9 @@ export default function CreateAgentModal({
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        if (res.status === 401) {
-          throw new Error('Your session has expired. Please sign in again.');
-        }
-        if (res.status === 403) {
-          throw new Error('Your session cannot perform this action.');
-        }
-        if (res.status === 409) {
-          throw new Error(data.error || 'An agent with this identity already exists.');
-        }
         throw new Error(data.error || 'Failed to create agent.');
       }
 
-      // Success
       setName('');
       setDescription('');
       setWalletAddress('');
@@ -153,32 +170,32 @@ export default function CreateAgentModal({
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md"
     >
-      <div className="w-full max-w-lg rounded-2xl glass-panel-elevated p-6 space-y-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
-          <h2 id="create-agent-modal-title" className="text-lg font-bold text-white flex items-center gap-2">
+      <div className="w-full max-w-lg rounded-3xl glass p-7 space-y-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-[var(--glass-b)] pb-4">
+          <h2 id="create-agent-modal-title" className="name text-2xl font-normal text-[var(--ink)] flex items-center gap-2">
             <span>🤖 Create Autonomous Agent</span>
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="text-slate-400 hover:text-white transition-colors text-sm p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="text-[var(--muted)] hover:text-[var(--ink)] text-sm p-1 rounded"
           >
             ✕
           </button>
         </div>
 
         {formError && (
-          <div className="p-3 text-xs rounded-lg glass-panel border-rose-500/30 bg-rose-950/20 text-rose-300">
+          <div className="p-3 text-xs rounded-xl border border-rose-500/30 bg-rose-500/10 text-[var(--deny)] font-mono">
             ⚠️ {formError}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[var(--ink)] mb-1">
               Agent Name *
             </label>
             <input
@@ -187,12 +204,12 @@ export default function CreateAgentModal({
               placeholder="e.g. Research Agent"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg bg-slate-900/60 border border-white/[0.08] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 font-sans"
+              className="w-full px-3.5 py-2.5 text-sm rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--accent)] font-sans"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[var(--ink)] mb-1">
               Description (optional)
             </label>
             <textarea
@@ -200,12 +217,12 @@ export default function CreateAgentModal({
               placeholder="Operational responsibilities and scope"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg bg-slate-900/60 border border-white/[0.08] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 font-sans"
+              className="w-full px-3.5 py-2.5 text-sm rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--accent)] font-sans"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-[var(--ink)] mb-1">
               Wallet Address (optional, defaults to backend server wallet)
             </label>
             <input
@@ -213,60 +230,49 @@ export default function CreateAgentModal({
               placeholder="0x..."
               value={walletAddress}
               onChange={(e) => setWalletAddress(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900/60 border border-white/[0.08] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 font-mono"
+              className="w-full px-3.5 py-2.5 text-xs rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--accent)] font-mono"
             />
           </div>
 
           {/* Spending Policy Configuration */}
-          <div className="p-4 rounded-xl bg-slate-900/40 border border-white/[0.06] space-y-3">
-            <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
-              <span className="text-xs font-bold text-white uppercase tracking-wider">
-                cUSD Spending Policy
-              </span>
-              <span className="text-[10px] font-mono text-emerald-400">cUSD Base Units</span>
-            </div>
+          <div className="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] space-y-3">
+            <span className="text-[11px] font-mono font-bold text-[var(--ink)] uppercase tracking-wider block">
+              Spending Policy Bounds (cUSD)
+            </span>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-medium text-slate-300 mb-0.5">
-                  Max per transaction
+                <label className="block text-[11px] font-medium text-[var(--muted)] mb-1">
+                  Max Per Tx *
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="5.00"
-                    value={maxPerTransaction}
-                    onChange={(e) => setMaxPerTransaction(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs rounded bg-slate-900/60 border border-white/[0.08] text-white font-mono focus:outline-none focus:border-emerald-500/60"
-                  />
-                  <span className="absolute right-2.5 top-1.5 text-[10px] font-mono text-slate-400">cUSD</span>
-                </div>
-                <p className="text-[10px] text-slate-500 mt-0.5">Single-payment cap</p>
+                <input
+                  type="text"
+                  required
+                  placeholder="5.00"
+                  value={maxPerTransaction}
+                  onChange={(e) => setMaxPerTransaction(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--accent)]"
+                />
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-slate-300 mb-0.5">
-                  Daily spending limit
+                <label className="block text-[11px] font-medium text-[var(--muted)] mb-1">
+                  Max Per Day *
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="25.00"
-                    value={maxPerDay}
-                    onChange={(e) => setMaxPerDay(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs rounded bg-slate-900/60 border border-white/[0.08] text-white font-mono focus:outline-none focus:border-emerald-500/60"
-                  />
-                  <span className="absolute right-2.5 top-1.5 text-[10px] font-mono text-slate-400">cUSD</span>
-                </div>
-                <p className="text-[10px] text-slate-500 mt-0.5">Rolling daily budget</p>
+                <input
+                  type="text"
+                  required
+                  placeholder="25.00"
+                  value={maxPerDay}
+                  onChange={(e) => setMaxPerDay(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--accent)]"
+                />
               </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-medium text-slate-300 mb-0.5">
-                Auto-approval threshold
+              <label className="block text-[11px] font-medium text-[var(--muted)] mb-1">
+                Auto-Approval Threshold *
               </label>
               <div className="relative">
                 <input
@@ -275,11 +281,11 @@ export default function CreateAgentModal({
                   placeholder="2.00"
                   value={autoApproveThreshold}
                   onChange={(e) => setAutoApproveThreshold(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs rounded bg-slate-900/60 border border-white/[0.08] text-white font-mono focus:outline-none focus:border-emerald-500/60"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--accent)]"
                 />
-                <span className="absolute right-2.5 top-1.5 text-[10px] font-mono text-slate-400">cUSD</span>
+                <span className="absolute right-3 top-2 text-[10px] font-mono text-[var(--muted)]">cUSD</span>
               </div>
-              <p className="text-[10px] text-slate-500 mt-0.5">Requests above this require owner approval</p>
+              <p className="text-[10px] text-[var(--muted)] mt-1">Requests above this queue for owner sign-off</p>
             </div>
           </div>
 
@@ -287,14 +293,14 @@ export default function CreateAgentModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-2 px-4 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 font-semibold text-xs transition-all shadow disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              className="btn solid flex-1 h-11 text-xs font-semibold"
             >
               {isSubmitting ? 'Creating...' : 'Create Agent'}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="py-2 px-4 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] font-medium text-xs transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="btn h-11 px-5 text-xs font-medium"
             >
               Cancel
             </button>

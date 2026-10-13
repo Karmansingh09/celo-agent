@@ -21,7 +21,7 @@ export default function AgentIdentity({ agent }: AgentIdentityProps) {
   const formatAddress = (addr?: string) => {
     if (!addr) return 'Default Backend Wallet';
     if (addr.length <= 12) return addr;
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
   };
 
   const formatDate = (timestampMs: number) => {
@@ -41,112 +41,100 @@ export default function AgentIdentity({ agent }: AgentIdentityProps) {
   const metadataEntries = agent.metadata ? Object.entries(agent.metadata) : [];
 
   return (
-    <div className="glass-panel p-6 rounded-xl space-y-6">
-      <div className="border-b border-white/[0.08] pb-3 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+    <div className="glass p-6 sm:p-7 rounded-3xl space-y-6">
+      <div className="border-b border-[var(--glass-b)] pb-3 flex items-center justify-between">
+        <h3 className="text-sm font-bold text-[var(--ink)] uppercase tracking-wider font-mono flex items-center gap-2">
           <span>Identity & Configuration</span>
         </h3>
-        <span className="text-xs font-mono text-slate-400">ID: {agent.id.slice(0, 16)}...</span>
+        <span className="text-xs font-mono text-[var(--muted)]">ID: {agent.id.slice(0, 16)}…</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
         {/* Agent ID */}
-        <div className="p-3 rounded-lg bg-slate-900/60 border border-white/[0.06] flex flex-col justify-between space-y-1">
-          <span className="text-slate-400 font-sans text-[11px] uppercase tracking-wider">Agent ID</span>
+        <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] flex flex-col justify-between space-y-1">
+          <span className="text-[var(--muted)] font-sans text-[11px] uppercase tracking-wider">Agent ID</span>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-white truncate" title={agent.id}>
+            <span className="text-[var(--ink)] font-bold truncate" title={agent.id}>
               {agent.id}
             </span>
             <button
               type="button"
               onClick={() => copyToClipboard(agent.id, 'id')}
-              className="text-[11px] text-slate-400 hover:text-emerald-400 transition-colors p-1"
+              className="text-[11px] text-[var(--muted)] hover:text-[var(--ink)]"
               title="Copy Agent ID"
             >
-              {copiedField === 'id' ? '✓' : '📋'}
+              {copiedField === 'id' ? '✓' : '⧉'}
             </button>
           </div>
         </div>
 
-        {/* Owner Address */}
-        <div className="p-3 rounded-lg bg-slate-900/60 border border-white/[0.06] flex flex-col justify-between space-y-1">
-          <span className="text-slate-400 font-sans text-[11px] uppercase tracking-wider">Owner Address</span>
+        {/* Wallet Address */}
+        <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] flex flex-col justify-between space-y-1">
+          <span className="text-[var(--muted)] font-sans text-[11px] uppercase tracking-wider">
+            Operational Wallet
+          </span>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-white" title={agent.ownerAddress}>
-              {formatAddress(agent.ownerAddress)}
-            </span>
-            <button
-              type="button"
-              onClick={() => copyToClipboard(agent.ownerAddress, 'owner')}
-              className="text-[11px] text-slate-400 hover:text-emerald-400 transition-colors p-1"
-              title="Copy Owner Address"
-            >
-              {copiedField === 'owner' ? '✓' : '📋'}
-            </button>
-          </div>
-        </div>
-
-        {/* Agent Wallet Address */}
-        <div className="p-3 rounded-lg bg-slate-900/60 border border-white/[0.06] flex flex-col justify-between space-y-1">
-          <span className="text-slate-400 font-sans text-[11px] uppercase tracking-wider">Agent Wallet</span>
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-white" title={agent.walletAddress || 'Default Backend Wallet'}>
+            <span className="text-[var(--ink)] font-bold truncate" title={agent.walletAddress || 'Server Wallet'}>
               {formatAddress(agent.walletAddress)}
             </span>
             {agent.walletAddress && (
               <button
                 type="button"
                 onClick={() => copyToClipboard(agent.walletAddress!, 'wallet')}
-                className="text-[11px] text-slate-400 hover:text-emerald-400 transition-colors p-1"
+                className="text-[11px] text-[var(--muted)] hover:text-[var(--ink)]"
                 title="Copy Wallet Address"
               >
-                {copiedField === 'wallet' ? '✓' : '📋'}
+                {copiedField === 'wallet' ? '✓' : '⧉'}
               </button>
             )}
           </div>
         </div>
 
-        {/* Status Reason if present */}
-        {agent.statusReason ? (
-          <div className="p-3 rounded-lg bg-slate-900/60 border border-white/[0.06] flex flex-col justify-between space-y-1">
-            <span className="text-slate-400 font-sans text-[11px] uppercase tracking-wider">Status Note</span>
-            <span className="text-amber-300 font-sans truncate" title={agent.statusReason}>
-              {agent.statusReason}
+        {/* Owner Address */}
+        <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] flex flex-col justify-between space-y-1">
+          <span className="text-[var(--muted)] font-sans text-[11px] uppercase tracking-wider">Owner (Admin)</span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[var(--ink)] font-bold truncate" title={agent.ownerAddress}>
+              {formatAddress(agent.ownerAddress)}
             </span>
+            <button
+              type="button"
+              onClick={() => copyToClipboard(agent.ownerAddress, 'owner')}
+              className="text-[11px] text-[var(--muted)] hover:text-[var(--ink)]"
+              title="Copy Owner Address"
+            >
+              {copiedField === 'owner' ? '✓' : '⧉'}
+            </button>
           </div>
-        ) : (
-          <div className="p-3 rounded-lg bg-slate-900/60 border border-white/[0.06] flex flex-col justify-between space-y-1">
-            <span className="text-slate-400 font-sans text-[11px] uppercase tracking-wider">Operational Mode</span>
-            <span className="text-slate-300 font-sans">Self-governed autonomous agent</span>
-          </div>
-        )}
+        </div>
 
-        {/* Created Timestamp */}
-        <div className="p-3 rounded-lg bg-slate-900/60 border border-white/[0.06] flex flex-col justify-between space-y-1">
-          <span className="text-slate-400 font-sans text-[11px] uppercase tracking-wider">Created</span>
-          <span className="text-slate-200">{formatDate(agent.createdAt)}</span>
+        {/* Creation Timestamp */}
+        <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] flex flex-col justify-between space-y-1">
+          <span className="text-[var(--muted)] font-sans text-[11px] uppercase tracking-wider">Registered At</span>
+          <span className="text-[var(--ink)] font-bold">{formatDate(agent.createdAt)}</span>
         </div>
 
         {/* Updated Timestamp */}
-        <div className="p-3 rounded-lg bg-slate-900/60 border border-white/[0.06] flex flex-col justify-between space-y-1">
-          <span className="text-slate-400 font-sans text-[11px] uppercase tracking-wider">Last Modified</span>
-          <span className="text-slate-200">{formatDate(agent.updatedAt)}</span>
+        <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] flex flex-col justify-between space-y-1">
+          <span className="text-[var(--muted)] font-sans text-[11px] uppercase tracking-wider">Last Modified</span>
+          <span className="text-[var(--ink)] font-bold">{formatDate(agent.updatedAt)}</span>
         </div>
       </div>
 
-      {/* Optional Metadata Section */}
+      {/* Metadata Section */}
       {metadataEntries.length > 0 && (
-        <div className="pt-2 border-t border-white/[0.08] space-y-2">
-          <span className="text-[11px] font-sans text-slate-400 uppercase tracking-wider block">
-            Custom Metadata ({metadataEntries.length})
+        <div className="space-y-2 pt-2 border-t border-[var(--glass-b)]">
+          <span className="text-[11px] font-mono text-[var(--muted)] uppercase tracking-wider block">
+            Metadata Attributes
           </span>
-          <div className="flex flex-wrap gap-2">
-            {metadataEntries.map(([key, val]) => (
+          <div className="flex flex-wrap gap-2 text-xs font-mono">
+            {metadataEntries.map(([key, value]) => (
               <span
                 key={key}
-                className="px-2.5 py-1 rounded bg-slate-900/60 border border-white/[0.08] text-xs font-mono text-slate-300"
+                className="px-2.5 py-1 rounded-full bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[var(--ink)]"
               >
-                <span className="text-emerald-400">{key}</span>: {val}
+                <span className="text-[var(--muted)]">{key}: </span>
+                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
               </span>
             ))}
           </div>

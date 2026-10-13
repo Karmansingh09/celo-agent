@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CeloAgent — Let agents spend. Keep the last word.</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2EEE5;--ink:#14201C;--muted:#5C6862;
+  --glass:rgba(255,255,255,.52);--glass-b:rgba(255,255,255,.75);--shadow:0 20px 50px -20px rgba(20,32,28,.25);
+  --b1:#FF9E6B;--b2:#6FD3B4;--b3:#9CC7FF;--accent:#0F5E4B;--accent-ink:#F2EEE5;
+  --ok:#157A5B;--warn:#B7791F;--deny:#B4443A;
+  --serif:'Instrument Serif',Georgia,'Times New Roman',serif;--sans:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;--mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0C1512;--ink:#EAF1ED;--muted:#93A39B;--glass:rgba(255,255,255,.07);--glass-b:rgba(255,255,255,.16);--shadow:0 20px 50px -20px rgba(0,0,0,.6);--b1:#D9683A;--b2:#1F8F73;--b3:#3C6FB5;--accent:#6FD3B4;--accent-ink:#0C1512;--ok:#6FD3B4;--warn:#E3B25C;--deny:#EE8A80}}
+:root[data-theme="dark"]{--bg:#0C1512;--ink:#EAF1ED;--muted:#93A39B;--glass:rgba(255,255,255,.07);--glass-b:rgba(255,255,255,.16);--shadow:0 20px 50px -20px rgba(0,0,0,.6);--b1:#D9683A;--b2:#1F8F73;--b3:#3C6FB5;--accent:#6FD3B4;--accent-ink:#0C1512;--ok:#6FD3B4;--warn:#E3B25C;--deny:#EE8A80}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.field{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;will-change:transform}
+.blob.a{width:48vmax;height:48vmax;background:var(--b1);left:-12vmax;top:-10vmax;animation:d1 22s ease-in-out infinite alternate}
+.blob.b{width:42vmax;height:42vmax;background:var(--b2);right:-10vmax;top:8vmax;animation:d2 26s ease-in-out infinite alternate}
+.blob.c{width:38vmax;height:38vmax;background:var(--b3);left:20vmax;bottom:-18vmax;animation:d3 30s ease-in-out infinite alternate}
+@keyframes d1{to{transform:translate(18vmax,12vmax) scale(1.15)}}
+@keyframes d2{to{transform:translate(-16vmax,10vmax) scale(.9)}}
+@keyframes d3{to{transform:translate(-14vmax,-12vmax) scale(1.2)}}
+.grain{position:fixed;inset:0;z-index:-1;opacity:.05;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+.glass{background:var(--glass);border:1px solid var(--glass-b);border-radius:22px;-webkit-backdrop-filter:blur(22px) saturate(160%);backdrop-filter:blur(22px) saturate(160%);box-shadow:var(--shadow)}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;margin:16px auto 0;max-width:1112px;display:flex;align-items:center;justify-content:space-between;padding:10px 12px 10px 20px;border-radius:999px}
+.logo{font:400 24px var(--serif);letter-spacing:-.01em}
+.logo i{color:var(--accent)}
+.links{display:flex;gap:26px;font-size:14px;font-weight:500;color:var(--muted)}
+.links a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 22px;border-radius:999px;font:600 14px var(--sans);border:1px solid var(--glass-b);background:var(--glass);color:var(--ink);cursor:pointer;transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.btn.solid{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;padding:84px 0 100px}
+.tagline{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;font:500 12px var(--mono);color:var(--muted);margin-bottom:26px}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 55%,transparent)}100%{box-shadow:0 0 0 10px transparent}}
+h1{font:400 clamp(46px,7vw,92px)/.95 var(--serif);letter-spacing:-.025em;margin:0 0 24px}
+h1 em{font-style:italic;color:var(--accent)}
+.word{display:inline-block;opacity:0;transform:translateY(.5em);animation:rise .8s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+.lede{font-size:18px;color:var(--muted);max-width:480px;margin:0 0 34px}
+.cta{display:flex;gap:12px;flex-wrap:wrap}
+.stage{position:relative;perspective:1200px;min-height:520px}
+.card{position:relative;padding:24px;transform-style:preserve-3d;transition:transform .15s ease-out;will-change:transform}
+.row{display:flex;justify-content:space-between;align-items:center}
+.chip{font:500 11px var(--mono);padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.name{font:400 28px var(--serif);margin:14px 0 2px}
+.addr{font:400 12px var(--mono);color:var(--muted)}
+.ringwrap{display:flex;align-items:center;gap:22px;margin-top:22px}
+.ring{width:112px;height:112px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:9;stroke-linecap:round}
+.ring .t{stroke:color-mix(in srgb,var(--ink) 10%,transparent)}
+.ring .v{stroke:var(--accent);stroke-dasharray:289;stroke-dashoffset:289;transition:stroke-dashoffset 1.8s cubic-bezier(.2,.8,.2,1) .6s}
+.num{font:500 30px var(--mono);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.num small{font-size:13px;color:var(--muted)}
+.lab{font-size:12px;color:var(--muted)}
+.feed{position:relative;margin:-26px 0 0 8%;padding:18px;z-index:2}
+.feed h4{margin:0 0 10px;font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid color-mix(in srgb,var(--ink) 8%,transparent);animation:slide .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes slide{from{opacity:0;transform:translateY(-14px)}}
+.amt{font:500 14px var(--mono)}
+.who{font-size:12px;color:var(--muted)}
+.st{font:500 11px var(--mono);padding:4px 10px;border-radius:999px;white-space:nowrap;transition:background .3s,color .3s}
+.st.p{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--muted)}
+.st.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.st.w{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.st.d{background:color-mix(in srgb,var(--deny) 16%,transparent);color:var(--deny)}
+.disc{font-size:11px;color:var(--muted);margin:10px 0 0}
+section{padding:90px 0}
+h2{font:400 clamp(34px,4.6vw,56px)/1.02 var(--serif);letter-spacing:-.02em;margin:0 0 16px;max-width:640px}
+.sub{color:var(--muted);max-width:520px;margin:0 0 44px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.feat{padding:28px;transition:transform .3s}
+.feat:hover{transform:translateY(-6px)}
+.feat h3{font:400 26px var(--serif);margin:0 0 8px}
+.feat p{margin:0;color:var(--muted);font-size:15px}
+.n{font:500 12px var(--mono);color:var(--accent);margin-bottom:34px;display:block}
+.track{padding:30px 28px}
+.steps{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;position:relative}
+.steps::before{content:"";position:absolute;left:4%;right:4%;top:14px;height:2px;background:color-mix(in srgb,var(--ink) 12%,transparent)}
+.fill{position:absolute;left:4%;top:14px;height:2px;width:0;background:var(--accent);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.s{position:relative;text-align:center;font-size:13px;font-weight:600;color:var(--muted);transition:color .4s}
+.s i{display:block;width:30px;height:30px;border-radius:50%;margin:0 auto 12px;background:var(--bg);border:2px solid color-mix(in srgb,var(--ink) 18%,transparent);transition:all .4s}
+.s small{display:block;font:400 11px var(--mono);margin-top:2px;font-weight:400}
+.s.on{color:var(--ink)}
+.s.on i{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 18%,transparent)}
+.capt{margin:30px 0 0;text-align:center;color:var(--muted);font-size:15px;min-height:26px}
+.final{padding:70px 40px;text-align:center}
+.final h2{margin:0 auto 14px}
+.final .sub{margin:0 auto 28px}
+.final .cta{justify-content:center}
+footer{padding:36px 0 44px;font-size:13px;color:var(--muted)}
+footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rv{opacity:0;transform:translateY(28px);transition:opacity .8s,transform .8s cubic-bezier(.2,.8,.2,1)}
+@property --ang{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes spin{to{--ang:360deg}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@keyframes mq{to{transform:translateX(-50%)}}
+.field{transform:translateY(calc(var(--sy,0)*-.08px))}
+.prog{position:fixed;left:0;right:0;top:0;height:3px;background:var(--accent);transform-origin:left;transform:scaleX(0);z-index:20}
+.feat,.track,.final{position:relative}
+.glass::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;background:radial-gradient(280px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,#fff 34%,transparent),transparent 62%)}
+.glass:hover::before{opacity:1}
+.card::after{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1.5px;pointer-events:none;background:conic-gradient(from var(--ang),transparent 0 62%,var(--accent) 82%,transparent 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 7s linear infinite}
+.fl{position:absolute;z-index:3;display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;font:500 12px var(--mono);animation:float 6s ease-in-out infinite}
+.fl i{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.fl.a{top:-16px;right:2%}.fl.b{top:44%;left:-26px;animation-duration:7.5s;animation-delay:-2s}.fl.c{bottom:-16px;right:4%;animation-duration:8s;animation-delay:-4s}
+.btn{position:relative;overflow:hidden}
+.btn.solid::after{content:"";position:absolute;top:0;bottom:0;width:60%;left:-80%;transform:skewX(-20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);transition:left .7s}
+.btn.solid:hover::after{left:130%}
+.tick{overflow:hidden;padding:6px 0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.tk{display:flex;gap:14px;width:max-content;animation:mq 42s linear infinite}
+.tick:hover .tk{animation-play-state:paused}
+.tk span{white-space:nowrap;padding:10px 20px;border-radius:999px;font:500 13px var(--mono);color:var(--muted);background:var(--glass);border:1px solid var(--glass-b)}
+@media(max-width:900px){.fl{display:none}}
+.hero{min-height:calc(100svh - 90px)}
+.deck{position:relative;transition:transform .15s ease-out;will-change:transform}
+.ghost{position:absolute;inset:0;pointer-events:none}
+.g1{transform:translate(18px,-18px) rotate(2.2deg) scale(.97);opacity:.75;animation:fan1 7s ease-in-out infinite alternate}
+.g2{transform:translate(36px,-34px) rotate(4.6deg) scale(.94);opacity:.45;animation:fan2 9s ease-in-out infinite alternate}
+@keyframes fan1{to{transform:translate(26px,-24px) rotate(3.4deg) scale(.97)}}
+@keyframes fan2{to{transform:translate(50px,-42px) rotate(7deg) scale(.94)}}
+#journey{padding:0}
+.pin{height:400vh;position:relative}
+.sticky{position:sticky;top:0;height:100svh;display:flex;align-items:center}
+.sticky .wrap{width:100%}
+.hint{text-align:center;font:400 11px var(--mono);color:var(--muted);margin:10px 0 0}
+.ticket{margin-top:18px;padding:22px 28px;display:grid;grid-template-columns:1.3fr repeat(3,1fr);gap:20px;align-items:center}
+.tl{display:block;font:400 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.ticket b{font:500 18px var(--mono);transition:color .4s}
+.blob{transition:background 1.2s}
+.pal{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:15;display:flex;gap:8px;padding:8px;border-radius:999px}
+.pal button{width:26px;height:26px;border-radius:50%;border:2px solid transparent;padding:0;cursor:pointer;transition:transform .2s}
+.pal button:hover{transform:scale(1.15)}
+.pal button[aria-pressed="true"]{border-color:var(--ink)}
+.pal button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+:root[data-pal="sunset"]{--b1:#FF7A6B;--b2:#FFC15C;--b3:#F58FA8;--accent:#A8322A}
+:root[data-pal="ocean"]{--b1:#2BB8C9;--b2:#5B8CFF;--b3:#7BE0D0;--accent:#0B4F8F}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .blob{opacity:.32}:root[data-pal="sunset"]:not([data-theme="light"]){--accent:#FF9A8A}:root[data-pal="ocean"]:not([data-theme="light"]){--accent:#7DB4FF}}
+@media(max-width:900px){.sticky{align-items:flex-start;padding-top:84px}.sticky .sub{display:none}.ticket{grid-template-columns:1fr 1fr}.hero{min-height:0}}
+@media(prefers-reduced-motion:reduce){.g1,.g2{animation:none}}
+@media(prefers-reduced-motion:reduce){.card::after,.fl,.tk{animation:none}.field{transform:none}}
+.rv.in{opacity:1;transform:none}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding:56px 0 70px}.three{grid-template-columns:1fr}.links{display:none}.steps{grid-template-columns:repeat(3,1fr);row-gap:22px}.steps::before,.fill{display:none}.feed{margin-left:0}.stage{min-height:0}}
+@media(prefers-reduced-motion:reduce){.blob,.pulse{animation:none}.word{animation:none;opacity:1;transform:none}.rv{opacity:1;transform:none;transition:none}.ring .v{transition:none}}
+</style>
+</head>
+<body>
+<div class="field" aria-hidden="true"><div class="blob a"></div><div class="blob b"></div><div class="blob c"></div></div>
+<div class="grain" aria-hidden="true"></div>
+<div class="prog" id="prog" aria-hidden="true"></div>
+<div class="glass pal" role="group" aria-label="Background color"><button data-p="dawn" aria-pressed="true" aria-label="Dawn" style="background:linear-gradient(135deg,#FF9E6B,#6FD3B4)"></button><button data-p="sunset" aria-pressed="false" aria-label="Sunset" style="background:linear-gradient(135deg,#FF7A6B,#FFC15C,#F58FA8)"></button><button data-p="ocean" aria-pressed="false" aria-label="Ocean" style="background:linear-gradient(135deg,#2BB8C9,#5B8CFF)"></button></div>
+
+<nav class="glass">
+  <a class="logo" href="#">Celo<i>Agent</i></a>
+  <div class="links"><a href="#controls">Controls</a><a href="#journey">Journey</a></div>
+  <a class="btn solid" href="/dashboard">Open dashboard</a>
+</nav>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <span class="tagline glass"><span class="pulse"></span>Spending controls · Celo Sepolia testnet</span>
+      <h1 id="h1"><span class="word">Let</span> <span class="word">agents</span> <span class="word"><em>spend.</em></span><br><span class="word">Keep</span> <span class="word">the</span> <span class="word">last</span> <span class="word"><em>word.</em></span></h1>
+      <p class="lede">Set a budget, a recipient list and an approval threshold for each AI agent. Anything outside the rules waits for you.</p>
+      <div class="cta"><a class="btn solid" href="/dashboard">Launch control plane</a><a class="btn" href="#journey">Watch a request</a></div>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="glass fl a"><i></i>Policy passed</div>
+      <div class="glass fl b"><i style="background:var(--warn)"></i>Idempotency key set</div>
+      <div class="glass fl c"><i style="background:var(--b3)"></i>Reserved ≠ settled</div>
+      <div class="deck" id="deck"><div class="glass ghost g1"></div><div class="glass ghost g2"></div><div class="glass card" id="card">
+        <div class="row"><span class="addr">agent · 0x9a3…c41e</span><span class="chip">ACTIVE</span></div>
+        <div class="name">research-bot</div>
+        <div class="addr">Policy: 25 per tx · 100 per day · approval above 10</div>
+        <div class="ringwrap">
+          <svg class="ring" viewBox="0 0 112 112" aria-hidden="true"><circle class="t" cx="56" cy="56" r="46"/><circle class="v" id="ringv" cx="56" cy="56" r="46"/></svg>
+          <div><div class="num"><span id="used">0.00</span> <small>cUSD</small></div><div class="lab">reserved today of 100.00</div></div>
+        </div>
+      </div></div>
+      <div class="glass feed" aria-live="polite">
+        <h4><span>Live requests</span><span>simulation</span></h4>
+        <div id="list"></div>
+        <p class="disc">Illustrative simulation. Not real transactions.</p>
+      </div>
+    </div>
+  </header>
+</div>
+
+<div class="tick" aria-hidden="true"><div class="tk" id="tk"><span>maxPerTransaction</span><span>maxPerDay · UTC window</span><span>allowedRecipients</span><span>autoApproveThreshold</span><span>idempotency keys</span><span>pause · resume · terminate</span><span>approve → re-evaluate</span><span>uncertain → hold for reconciliation</span></div></div>
+
+<section id="controls"><div class="wrap">
+  <h2 class="rv">Three levers. All yours.</h2>
+  <p class="sub rv">Every request is checked against the agent's policy on the server before any budget is reserved.</p>
+  <div class="three">
+    <article class="glass feat rv"><span class="n">01</span><h3>Spending policy</h3><p>Per-transaction and daily limits, an allowed-recipient list, an expiry date, and a threshold for auto-approval.</p></article>
+    <article class="glass feat rv"><span class="n">02</span><h3>Approval queue</h3><p>Larger requests wait for you. Approving triggers a fresh policy and budget check before anything is executed.</p></article>
+    <article class="glass feat rv"><span class="n">03</span><h3>Lifecycle</h3><p>Pause an agent to block new spending at once, resume it later, or terminate it for good.</p></article>
+  </div>
+</div></section>
+
+<section id="journey"><div class="pin" id="pin"><div class="sticky"><div class="wrap">
+  <h2 class="rv">Six steps. Never blurred together.</h2>
+  <p class="sub rv">A reserved budget is not a sent payment, and a sent payment is not a settled one.</p>
+  <div class="glass track rv">
+    <div class="steps" id="steps">
+      <div class="fill" id="fill"></div>
+      <div class="s"><i></i>Received<small>idempotent</small></div>
+      <div class="s"><i></i>Policy<small>checked</small></div>
+      <div class="s"><i></i>Reserved<small>no funds moved</small></div>
+      <div class="s"><i></i>Approval<small>if required</small></div>
+      <div class="s"><i></i>Submitted<small>not final</small></div>
+      <div class="s"><i></i>Settled<small>receipt verified</small></div>
+    </div>
+    <p class="capt" id="capt"></p>
+  </div>
+  <p class="hint">Scroll to advance · or click a step</p>
+  <div class="glass ticket">
+    <div><div class="num">42.00 <small>cUSD</small></div><div class="lab">to 0x9a3…c41e · example request</div></div>
+    <div><span class="tl">Budget</span><b id="tBud">—</b></div>
+    <div><span class="tl">Funds moved</span><b id="tFun">No</b></div>
+    <div><span class="tl">Receipt</span><b id="tRec">—</b></div>
+  </div>
+</div></div></div></section>
+
+<div class="wrap"><div class="glass final rv">
+  <h2>Set the limits before the agent spends.</h2>
+  <p class="sub">Connect a wallet, register an agent, define its policy.</p>
+  <div class="cta"><a class="btn solid" href="/dashboard">Launch control plane</a></div>
+</div></div>
+
+<footer><div class="wrap"><span>CeloAgent · Testnet preview</span><span>Policies are enforced by the backend, not on-chain.</span></div></footer>
+
+<script>
+(function(){
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches,root0=document.documentElement;
+  // staggered headline
+  document.querySelectorAll('.word').forEach(function(w,i){w.style.animationDelay=(0.15+i*0.09)+'s'});
+  // scroll reveal
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.15});
+  document.querySelectorAll('.rv').forEach(function(el,i){el.style.transitionDelay=(i%3)*0.08+'s';io.observe(el)});
+  // ring + counter
+  var used=0,target=62.4,usedEl=document.getElementById('used'),ring=document.getElementById('ringv');
+  setTimeout(function(){ring.style.strokeDashoffset=289*(1-target/100)},50);
+  var t0=null;function tick(ts){if(!t0)t0=ts;var p=Math.min((ts-t0-600)/1800,1);if(p>0){var e=1-Math.pow(1-p,3);usedEl.textContent=(target*e).toFixed(2)}if(p<1)requestAnimationFrame(tick)}
+  reduce?usedEl.textContent=target.toFixed(2):requestAnimationFrame(tick);
+  // tilt
+  var stage=document.getElementById('stage'),card=document.getElementById('deck');
+  if(!reduce&&window.matchMedia('(hover:hover)').matches){
+    stage.addEventListener('mousemove',function(e){var r=stage.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;card.style.transform='rotateY('+(x*10)+'deg) rotateX('+(-y*10)+'deg)'});
+    stage.addEventListener('mouseleave',function(){card.style.transform=''});
+  }
+  // live feed simulation
+  var sc=[
+    {a:'4.20',w:'research-bot → 0x71e…09b2',f:[['Checking','p'],['Reserved','ok']]},
+    {a:'18.00',w:'research-bot → 0xc2d…4a17',f:[['Checking','p'],['Needs approval','w']]},
+    {a:'60.00',w:'research-bot → 0x5f0…e3a8',f:[['Checking','p'],['Denied · over limit','d']]},
+    {a:'7.50',w:'research-bot → 0x71e…09b2',f:[['Checking','p'],['Reserved','ok']]}
+  ];
+  var list=document.getElementById('list'),idx=0;
+  function add(){
+    var s=sc[idx++%sc.length],d=document.createElement('div');d.className='item';
+    d.innerHTML='<span class="amt">'+s.a+'</span><span class="who">'+s.w+'</span><span class="st p">Received</span>';
+    list.insertBefore(d,list.firstChild);
+    while(list.children.length>3)list.removeChild(list.lastChild);
+    var st=d.querySelector('.st');
+    s.f.forEach(function(x,i){setTimeout(function(){st.textContent=x[0];st.className='st '+x[1];if(x[1]==='ok'&&ready)bump(parseFloat(s.a))},700*(i+1))});
+  }
+  var ready=false;setTimeout(function(){ready=true},2800);
+  function bump(a){var from=parseFloat(usedEl.textContent)||0;target=target+a;if(target>100)target=a;ring.style.strokeDashoffset=289*(1-target/100);var to=target,s0=null;function f(ts){if(!s0)s0=ts;var p=Math.min((ts-s0)/900,1),e=1-Math.pow(1-p,3);usedEl.textContent=(from+(to-from)*e).toFixed(2);if(p<1)requestAnimationFrame(f)}reduce?usedEl.textContent=to.toFixed(2):requestAnimationFrame(f)}
+  add();setInterval(add,3400);
+  var tk=document.getElementById('tk');tk.innerHTML+=tk.innerHTML;
+  document.querySelectorAll('.pal button').forEach(function(b){b.addEventListener('click',function(){var p=b.getAttribute('data-p');if(p==='dawn')root0.removeAttribute('data-pal');else root0.setAttribute('data-pal',p);document.querySelectorAll('.pal button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false')})})});
+  var prog=document.getElementById('prog'),root=document.documentElement;
+  function onScroll(){var h=root.scrollHeight-innerHeight;prog.style.transform='scaleX('+(h>0?scrollY/h:0)+')';root.style.setProperty('--sy',scrollY)}
+  addEventListener('scroll',onScroll,{passive:true});onScroll();
+  document.addEventListener('mousemove',function(e){var g=e.target.closest&&e.target.closest('.glass');if(g){var r=g.getBoundingClientRect();g.style.setProperty('--mx',(e.clientX-r.left)+'px');g.style.setProperty('--my',(e.clientY-r.top)+'px')}});
+  if(!reduce&&window.matchMedia('(hover:hover)').matches){document.querySelectorAll('.btn').forEach(function(b){b.addEventListener('mousemove',function(e){var r=b.getBoundingClientRect();b.style.transform='translate('+((e.clientX-r.left-r.width/2)*.15)+'px,'+((e.clientY-r.top-r.height/2)*.25)+'px)'});b.addEventListener('mouseleave',function(){b.style.transform=''})})}
+  // journey auto-advance
+  var steps=document.querySelectorAll('#steps .s'),fill=document.getElementById('fill'),capt=document.getElementById('capt');
+  var msgs=['Request received with an idempotency key.','Policy evaluated: allow, require approval, or deny.','Budget reserved. No funds have moved.','Waiting for your decision, when policy requires one.','Transaction submitted. Not final yet.','Receipt verified. Only now is it settled.'];
+  var cur=0;
+  var bud=['—','—','Held','Held','Held','Committed'],fun=['No','No','No','No','Pending','Yes'],rec=['—','—','—','—','Awaiting','Verified'];
+  function show(n){steps.forEach(function(s,i){s.classList.toggle('on',i<=n)});fill.style.width=(92*n/5)+'%';capt.textContent=msgs[n];var b=document.getElementById('tBud'),f=document.getElementById('tFun'),r=document.getElementById('tRec');b.textContent=bud[n];f.textContent=fun[n];r.textContent=rec[n];b.style.color=n>=2?'var(--ink)':'var(--muted)';f.style.color=n===5?'var(--ok)':n===4?'var(--warn)':'var(--muted)';r.style.color=n===5?'var(--ok)':n===4?'var(--warn)':'var(--muted)'}
+  show(0);
+  var pin=document.getElementById('pin');
+  function drive(){var r=pin.getBoundingClientRect(),range=r.height-innerHeight,p=Math.min(Math.max(-r.top/range,0),.999),n=Math.floor(p*6);if(n!==cur){cur=n;show(n)}}
+  addEventListener('scroll',drive,{passive:true});drive();
+  steps.forEach(function(s,i){s.style.cursor='pointer';s.addEventListener('click',function(){var r=pin.getBoundingClientRect(),range=r.height-innerHeight;scrollTo({top:scrollY+r.top+range*(i+.5)/6,behavior:reduce?'auto':'smooth'})})});
+})();
+</script>
+</body>
+</html>

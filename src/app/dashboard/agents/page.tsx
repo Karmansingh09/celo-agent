@@ -133,15 +133,15 @@ export default function AgentsPage() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--glass-b)]">
         <div className="space-y-1">
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-2xl sm:text-3xl font-normal text-[var(--ink)] tracking-tight flex items-center gap-2.5">
             <span>AI Agents</span>
-            <span className="px-2 py-0.5 text-xs font-mono font-medium rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+            <span className="chip">
               {totalCount} total
             </span>
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs sm:text-sm text-[var(--muted)]">
             Provision autonomous spending agents, configure cUSD limits, and control operational lifecycles.
           </p>
         </div>
@@ -149,7 +149,7 @@ export default function AgentsPage() {
         <button
           type="button"
           onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-[0_4px_16px_-4px_rgba(134,227,176,0.3)] inline-flex items-center gap-2 shrink-0 self-start sm:self-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          className="btn solid h-10 px-5 text-xs font-semibold shrink-0 self-start sm:self-auto"
         >
           <span>＋</span>
           <span>Create Agent</span>
@@ -160,56 +160,56 @@ export default function AgentsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div
           onClick={() => setActiveFilter('ALL')}
-          className={`p-4 rounded-2xl glass-panel glass-card-interactive cursor-pointer transition-all ${
+          className={`p-5 rounded-3xl glass cursor-pointer transition-all ${
             activeFilter === 'ALL'
-              ? 'border-emerald-500/40 shadow-[0_0_16px_-4px_rgba(134,227,176,0.25)] ring-1 ring-emerald-500/30'
-              : 'hover:border-[rgba(180,205,220,0.2)]'
+              ? 'ring-2 ring-[var(--accent)] shadow-md'
+              : 'hover:-translate-y-1'
           }`}
         >
-          <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">Total Agents</div>
-          <div className="text-2xl font-bold text-white mt-1 tabular-nums">{totalCount}</div>
+          <div className="text-[11px] font-mono text-[var(--muted)] uppercase tracking-wider">Total Agents</div>
+          <div className="num mt-1">{totalCount}</div>
         </div>
 
         <div
           onClick={() => setActiveFilter('ACTIVE')}
-          className={`p-4 rounded-2xl glass-panel glass-card-interactive cursor-pointer transition-all ${
+          className={`p-5 rounded-3xl glass cursor-pointer transition-all ${
             activeFilter === 'ACTIVE'
-              ? 'border-emerald-500/40 shadow-[0_0_16px_-4px_rgba(134,227,176,0.25)] ring-1 ring-emerald-500/30'
-              : 'hover:border-[rgba(180,205,220,0.2)]'
+              ? 'ring-2 ring-[var(--ok)] shadow-md'
+              : 'hover:-translate-y-1'
           }`}
         >
-          <div className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider">Active</div>
-          <div className="text-2xl font-bold text-emerald-300 mt-1 tabular-nums">{activeCount}</div>
+          <div className="text-[11px] font-mono text-[var(--ok)] uppercase tracking-wider">Active</div>
+          <div className="num mt-1" style={{ color: 'var(--ok)' }}>{activeCount}</div>
         </div>
 
         <div
           onClick={() => setActiveFilter('PAUSED')}
-          className={`p-4 rounded-2xl glass-panel glass-card-interactive cursor-pointer transition-all ${
+          className={`p-5 rounded-3xl glass cursor-pointer transition-all ${
             activeFilter === 'PAUSED'
-              ? 'border-amber-500/40 shadow-[0_0_16px_-4px_rgba(241,194,125,0.25)] ring-1 ring-amber-500/30'
-              : 'hover:border-[rgba(180,205,220,0.2)]'
+              ? 'ring-2 ring-[var(--warn)] shadow-md'
+              : 'hover:-translate-y-1'
           }`}
         >
-          <div className="text-[11px] font-mono text-amber-400 uppercase tracking-wider">Paused</div>
-          <div className="text-2xl font-bold text-amber-300 mt-1 tabular-nums">{pausedCount}</div>
+          <div className="text-[11px] font-mono text-[var(--warn)] uppercase tracking-wider">Paused</div>
+          <div className="num mt-1" style={{ color: 'var(--warn)' }}>{pausedCount}</div>
         </div>
 
         <div
           onClick={() => setActiveFilter('TERMINATED')}
-          className={`p-4 rounded-2xl glass-panel glass-card-interactive cursor-pointer transition-all ${
+          className={`p-5 rounded-3xl glass cursor-pointer transition-all ${
             activeFilter === 'TERMINATED'
-              ? 'border-rose-500/40 shadow-[0_0_16px_-4px_rgba(242,139,130,0.25)] ring-1 ring-rose-500/30'
-              : 'hover:border-[rgba(180,205,220,0.2)]'
+              ? 'ring-2 ring-[var(--deny)] shadow-md'
+              : 'hover:-translate-y-1'
           }`}
         >
-          <div className="text-[11px] font-mono text-rose-400 uppercase tracking-wider">Terminated</div>
-          <div className="text-2xl font-bold text-rose-300 mt-1 tabular-nums">{terminatedCount}</div>
+          <div className="text-[11px] font-mono text-[var(--deny)] uppercase tracking-wider">Terminated</div>
+          <div className="num mt-1" style={{ color: 'var(--deny)' }}>{terminatedCount}</div>
         </div>
       </div>
 
       {/* Filter Tabs & Search / Refresh Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[rgba(15,22,33,0.65)] border border-[rgba(180,205,220,0.1)] backdrop-blur-md self-start">
+        <div className="flex items-center gap-1.5 p-1 rounded-full glass self-start">
           {(
             [
               { key: 'ALL', label: 'All', count: totalCount },
@@ -222,18 +222,18 @@ export default function AgentsPage() {
               key={tab.key}
               type="button"
               onClick={() => setActiveFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${
                 activeFilter === tab.key
-                  ? 'bg-[rgba(30,43,59,0.85)] text-emerald-300 border border-emerald-500/35 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-[rgba(20,29,42,0.5)] border border-transparent'
+                  ? 'bg-[var(--accent)] text-[var(--accent-ink)] font-semibold shadow-sm'
+                  : 'text-[var(--muted)] hover:text-[var(--ink)]'
               }`}
             >
               <span>{tab.label}</span>
               <span
                 className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full tabular-nums ${
                   activeFilter === tab.key
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'bg-slate-800 text-slate-400'
+                    ? 'bg-black/20 text-white'
+                    : 'bg-black/5 dark:bg-white/10 text-[var(--muted)]'
                 }`}
               >
                 {tab.count}
@@ -246,7 +246,7 @@ export default function AgentsPage() {
           type="button"
           onClick={() => fetchAgents()}
           disabled={isLoading}
-          className="px-3 py-1.5 rounded-xl border border-[rgba(180,205,220,0.14)] bg-[rgba(20,29,42,0.6)] hover:bg-[rgba(30,43,59,0.8)] text-slate-300 text-xs font-medium transition-all disabled:opacity-50 self-end sm:self-auto flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 shadow-sm"
+          className="btn h-9 px-4 text-xs font-medium self-end sm:self-auto flex items-center gap-1.5"
           title="Refresh list"
         >
           <span className={isLoading ? 'animate-spin' : ''}>↻</span>

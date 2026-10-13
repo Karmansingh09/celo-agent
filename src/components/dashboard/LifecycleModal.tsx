@@ -77,7 +77,7 @@ export default function LifecycleModal({
       setConfirmName('');
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Operation failed.';
+      const msg = err instanceof Error ? err.message : 'Action failed. Please try again.';
       setError(msg);
     } finally {
       setIsSubmitting(false);
@@ -94,41 +94,37 @@ export default function LifecycleModal({
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md"
     >
-      <div className="w-full max-w-md rounded-2xl glass-panel-elevated p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-          <h2
-            id="lifecycle-modal-title"
-            className={`text-base font-bold ${
-              isTerminate ? 'text-rose-400' : isPause ? 'text-amber-400' : 'text-emerald-400'
-            }`}
-          >
-            {title}
+      <div className="w-full max-w-md rounded-3xl glass p-7 space-y-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-[var(--glass-b)] pb-4">
+          <h2 id="lifecycle-modal-title" className="name text-2xl font-normal text-[var(--ink)] flex items-center gap-2">
+            <span>{isTerminate ? '⚠️' : isPause ? '⏸' : '▶'}</span>
+            <span>{title}</span>
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="text-slate-400 hover:text-white transition-colors text-sm p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="text-[var(--muted)] hover:text-[var(--ink)] text-sm p-1 rounded"
           >
             ✕
           </button>
         </div>
 
         {error && (
-          <div className="p-3 text-xs rounded-lg glass-panel border-rose-500/30 bg-rose-950/20 text-rose-300">
+          <div className="p-3 text-xs rounded-xl border border-rose-500/30 bg-rose-500/10 text-[var(--deny)] font-mono">
             ⚠️ {error}
           </div>
         )}
 
-        <p className="text-xs text-slate-300 leading-relaxed">
+        <p className="text-xs sm:text-sm text-[var(--muted)] leading-relaxed">
           {description}
         </p>
 
         <form onSubmit={handleExecute} className="space-y-4">
           <div>
-            <label className="block text-[11px] font-medium text-slate-400 mb-1">
+            <label className="block text-[11px] font-medium text-[var(--muted)] mb-1">
               Reason (optional, max 500 characters)
             </label>
             <input
@@ -136,14 +132,14 @@ export default function LifecycleModal({
               placeholder="e.g. Scheduled maintenance"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900/60 border border-white/[0.08] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 font-sans"
+              className="w-full px-3.5 py-2 text-xs rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--accent)] font-sans"
             />
           </div>
 
           {isTerminate && (
-            <div className="p-3 rounded-lg bg-rose-950/20 border border-rose-500/30 space-y-2">
-              <label className="block text-xs font-semibold text-rose-300">
-                Type agent name <span className="font-mono text-white underline">{agent.name}</span> to confirm:
+            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-2">
+              <label className="block text-xs font-semibold text-[var(--deny)]">
+                Type agent name <span className="font-mono underline text-[var(--ink)]">{agent.name}</span> to confirm:
               </label>
               <input
                 type="text"
@@ -151,7 +147,7 @@ export default function LifecycleModal({
                 value={confirmName}
                 onChange={(e) => setConfirmName(e.target.value)}
                 placeholder={agent.name}
-                className="w-full px-3 py-1.5 text-xs rounded bg-slate-900/60 border border-rose-500/40 text-white font-mono focus:outline-none focus:border-rose-400"
+                className="w-full px-3 py-1.5 text-xs rounded-xl bg-black/10 border border-rose-500/40 text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--deny)]"
               />
             </div>
           )}
@@ -160,12 +156,8 @@ export default function LifecycleModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`flex-1 py-2 px-4 rounded-lg font-semibold text-xs transition-all shadow disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-slate-400 ${
-                isTerminate
-                  ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 hover:border-rose-500/60'
-                  : isPause
-                  ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 hover:border-amber-500/60'
-                  : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60'
+              className={`btn solid flex-1 h-10 text-xs font-semibold ${
+                isTerminate ? 'bg-rose-600 hover:bg-rose-700 text-white' : ''
               }`}
             >
               {isSubmitting
@@ -179,7 +171,7 @@ export default function LifecycleModal({
             <button
               type="button"
               onClick={onClose}
-              className="py-2 px-4 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] font-medium text-xs transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="btn h-10 px-5 text-xs font-medium"
             >
               Cancel
             </button>

@@ -21,11 +21,9 @@ export default function AgentCard({
 }: AgentCardProps) {
   const [copied, setCopied] = useState<boolean>(false);
 
-  const walletAddr = agent.walletAddress || 'Server Wallet';
   const isCustomWallet = !!agent.walletAddress;
-
   const shortenedAddress = isCustomWallet
-    ? `${agent.walletAddress!.slice(0, 6)}...${agent.walletAddress!.slice(-4)}`
+    ? `${agent.walletAddress!.slice(0, 6)}…${agent.walletAddress!.slice(-4)}`
     : 'Default Wallet';
 
   const handleCopy = (e: React.MouseEvent) => {
@@ -39,151 +37,126 @@ export default function AgentCard({
 
   const statusConfig = {
     ACTIVE: {
-      label: '● ACTIVE',
-      badgeClass: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 shadow-[0_0_10px_-2px_rgba(134,227,176,0.2)]',
-      dotClass: 'bg-emerald-400',
+      label: 'ACTIVE',
+      chipClass: 'st ok',
     },
     PAUSED: {
-      label: '● PAUSED',
-      badgeClass: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-      dotClass: 'bg-amber-400',
+      label: 'PAUSED',
+      chipClass: 'st w',
     },
     TERMINATED: {
-      label: '● TERMINATED',
-      badgeClass: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
-      dotClass: 'bg-rose-400',
+      label: 'TERMINATED',
+      chipClass: 'st d',
     },
   }[agent.status];
 
+  const maxPerTx = agent.spendingPolicy.maxPerTransaction;
+  const maxPerDay = agent.spendingPolicy.maxPerDay;
+  const autoApprove = agent.spendingPolicy.autoApproveThreshold;
+
   return (
-    <div className="p-6 rounded-2xl glass-panel glass-card-interactive shadow-sm flex flex-col justify-between space-y-5">
-      <div className="space-y-3.5">
-        {/* Header: Name and Status */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <span>🤖 {agent.name}</span>
-            </h3>
-            <span className="text-[11px] font-mono text-slate-400 block truncate max-w-[200px]" title={agent.id}>
-              {agent.id}
-            </span>
-          </div>
-
-          <span
-            className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold border ${statusConfig.badgeClass} shrink-0`}
-          >
-            {statusConfig.label}
-          </span>
-        </div>
-
-        {/* Description */}
-        <p className="text-xs text-slate-300 line-clamp-2 min-h-[32px] leading-relaxed">
-          {agent.description || 'Autonomous agent configured with spending boundaries.'}
-        </p>
-
-        {/* Wallet Address Display */}
-        <div className="flex items-center justify-between text-xs py-1.5 px-3 rounded-xl bg-[rgba(11,17,25,0.65)] border border-[rgba(180,205,220,0.1)] font-mono">
-          <span className="text-slate-400">Wallet:</span>
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-200" title={walletAddr}>
-              {shortenedAddress}
+    <div className="p-6 sm:p-7 rounded-3xl glass shadow-sm flex flex-col justify-between space-y-5 transition-transform hover:-translate-y-1">
+      <div className="space-y-3">
+        {/* Header row: Agent address & status chip */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="addr font-mono text-xs text-[var(--muted)]">
+              agent · {shortenedAddress}
             </span>
             {isCustomWallet && (
               <button
                 type="button"
                 onClick={handleCopy}
-                className="text-[10px] text-slate-400 hover:text-emerald-400 transition-colors ml-1 p-0.5 rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
+                className="text-[10px] text-[var(--muted)] hover:text-[var(--ink)] font-mono"
                 title="Copy address"
               >
-                {copied ? '✓' : '📋'}
+                {copied ? '✓' : '⧉'}
               </button>
             )}
           </div>
+          <span className={statusConfig.chipClass}>{statusConfig.label}</span>
         </div>
 
-        {/* Spending Policy Summary */}
-        <div className="space-y-1.5 pt-1 text-xs font-mono">
-          <div className="flex justify-between items-center text-slate-400">
-            <span>Max / tx:</span>
-            <span className="text-white font-semibold tabular-nums">
-              ${agent.spendingPolicy.maxPerTransaction} cUSD
-            </span>
-          </div>
+        {/* Agent Name */}
+        <div>
+          <Link
+            href={`/dashboard/agents/${agent.id}`}
+            className="name text-2xl sm:text-3xl font-normal text-[var(--ink)] hover:text-[var(--accent)] transition-colors block"
+          >
+            {agent.name}
+          </Link>
+          {agent.description && (
+            <p className="text-xs text-[var(--muted)] mt-1 line-clamp-2 leading-relaxed">
+              {agent.description}
+            </p>
+          )}
+        </div>
 
-          <div className="flex justify-between items-center text-slate-400">
-            <span>Daily limit:</span>
-            <span className="text-white font-semibold tabular-nums">
-              ${agent.spendingPolicy.maxPerDay} cUSD
-            </span>
-          </div>
+        {/* Policy Summary line */}
+        <div className="addr text-xs font-mono text-[var(--muted)] pt-1">
+          Policy: {maxPerTx} per tx · {maxPerDay} per day · approval above {autoApprove}
+        </div>
 
-          <div className="flex justify-between items-center text-slate-400">
-            <span>Auto-approve:</span>
-            <span className="text-emerald-400 font-semibold tabular-nums">
-              ≤ ${agent.spendingPolicy.autoApproveThreshold} cUSD
-            </span>
+        {/* Policy details box */}
+        <div className="grid grid-cols-2 gap-2 pt-2 text-xs font-mono">
+          <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)]">
+            <span className="text-[10px] text-[var(--muted)] uppercase block">Daily Cap</span>
+            <span className="text-sm font-bold text-[var(--ink)] tabular-nums">{agent.spendingPolicy.maxPerDay} cUSD</span>
+          </div>
+          <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)]">
+            <span className="text-[10px] text-[var(--muted)] uppercase block">Auto-Approve</span>
+            <span className="text-sm font-bold text-[var(--ink)] tabular-nums">≤ {agent.spendingPolicy.autoApproveThreshold} cUSD</span>
           </div>
         </div>
       </div>
 
-      {/* Actions Bar */}
-      <div className="pt-3 border-t border-[rgba(180,205,220,0.1)] flex flex-wrap items-center justify-between gap-2">
+      {/* Action Footer */}
+      <div className="pt-3 border-t border-[var(--glass-b)] flex flex-wrap items-center justify-between gap-2">
         <Link
           href={`/dashboard/agents/${agent.id}`}
-          className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
+          className="text-xs font-mono font-semibold text-[var(--accent)] hover:opacity-80 transition-opacity"
         >
-          <span>View agent</span>
-          <span>→</span>
+          View Details →
         </Link>
 
-        {/* Lifecycle Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           {agent.status === 'ACTIVE' && (
-            <>
-              <button
-                type="button"
-                disabled={isActionLoading}
-                onClick={() => onPause(agent)}
-                className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-[rgba(20,29,42,0.7)] hover:bg-amber-950/40 text-amber-300 border border-[rgba(180,205,220,0.14)] hover:border-amber-700/60 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-              >
-                Pause
-              </button>
-              <button
-                type="button"
-                disabled={isActionLoading}
-                onClick={() => onTerminate(agent)}
-                className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-[rgba(20,29,42,0.7)] hover:bg-rose-950/50 text-rose-300 border border-[rgba(180,205,220,0.14)] hover:border-rose-800/60 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
-              >
-                Terminate
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => onPause(agent)}
+              disabled={isActionLoading}
+              className="btn h-8 px-3 text-xs text-[var(--warn)]"
+            >
+              Pause
+            </button>
           )}
 
           {agent.status === 'PAUSED' && (
-            <>
-              <button
-                type="button"
-                disabled={isActionLoading}
-                onClick={() => onResume(agent)}
-                className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/40 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-              >
-                Resume
-              </button>
-              <button
-                type="button"
-                disabled={isActionLoading}
-                onClick={() => onTerminate(agent)}
-                className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-[rgba(20,29,42,0.7)] hover:bg-rose-950/50 text-rose-300 border border-[rgba(180,205,220,0.14)] hover:border-rose-800/60 transition-all disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
-              >
-                Terminate
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => onResume(agent)}
+              disabled={isActionLoading}
+              className="btn h-8 px-3 text-xs text-[var(--ok)]"
+            >
+              Resume
+            </button>
           )}
 
           {agent.status === 'TERMINATED' && (
-            <span className="text-[11px] font-mono text-slate-500 italic">
+            <span className="text-[11px] font-mono text-[var(--muted)] italic">
               Retired
             </span>
+          )}
+
+          {agent.status !== 'TERMINATED' && (
+            <button
+              type="button"
+              onClick={() => onTerminate(agent)}
+              disabled={isActionLoading}
+              className="btn h-8 px-3 text-xs text-[var(--deny)]"
+            >
+              Terminate
+            </button>
           )}
         </div>
       </div>

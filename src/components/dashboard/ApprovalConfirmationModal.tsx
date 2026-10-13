@@ -61,11 +61,11 @@ export default function ApprovalConfirmationModal({
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md"
     >
-      <div className="w-full max-w-md rounded-2xl glass-panel-elevated p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-          <h2 id="approval-confirmation-title" className="text-base font-bold text-emerald-400 flex items-center gap-2">
+      <div className="w-full max-w-md rounded-3xl glass p-7 space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-[var(--glass-b)] pb-3">
+          <h2 id="approval-confirmation-title" className="name text-2xl font-normal text-[var(--ok)] flex items-center gap-2">
             <span>Approve Spending Request?</span>
           </h2>
           <button
@@ -73,51 +73,51 @@ export default function ApprovalConfirmationModal({
             onClick={onClose}
             disabled={isSubmitting}
             aria-label="Close dialog"
-            className="text-slate-400 hover:text-white transition-colors text-sm p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="text-[var(--muted)] hover:text-[var(--ink)] text-sm p-1 rounded"
           >
             ✕
           </button>
         </div>
 
         {error && (
-          <div className="p-3 text-xs rounded-lg glass-panel border-rose-500/30 bg-rose-950/20 text-rose-300">
+          <div className="p-3 text-xs rounded-xl border border-rose-500/30 bg-rose-500/10 text-[var(--deny)] font-mono">
             ⚠️ {error}
           </div>
         )}
 
         <div className="space-y-3 text-xs">
-          <p className="text-slate-300 leading-relaxed">
+          <p className="text-[var(--muted)] leading-relaxed">
             You are authorizing this controlled spending request to proceed through the CeloAgent policy and budget execution pipeline.
           </p>
 
-          <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2 font-mono">
+          <div className="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] space-y-2 font-mono">
             <div className="flex justify-between items-center">
-              <span className="text-slate-400 font-sans">Agent:</span>
-              <span className="text-white font-bold">{agentName}</span>
+              <span className="text-[var(--muted)] font-sans">Agent:</span>
+              <span className="text-[var(--ink)] font-bold">{agentName}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-slate-400 font-sans">Amount:</span>
-              <span className="text-emerald-400 font-bold tabular-nums">${approval.amountCusd} cUSD</span>
+              <span className="text-[var(--muted)] font-sans">Amount:</span>
+              <span className="text-[var(--ok)] font-bold tabular-nums">${approval.amountCusd} cUSD</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-slate-400 font-sans">Recipient:</span>
-              <span className="text-slate-300" title={approval.recipient}>
-                {approval.recipient.slice(0, 8)}...{approval.recipient.slice(-6)}
+              <span className="text-[var(--muted)] font-sans">Recipient:</span>
+              <span className="text-[var(--ink)]" title={approval.recipient}>
+                {approval.recipient.slice(0, 8)}…{approval.recipient.slice(-6)}
               </span>
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-slate-900/40 border border-white/[0.06] text-[11px] text-slate-400 leading-relaxed">
-            ℹ️ <strong className="text-slate-300 font-normal">Control-plane action:</strong> Approval records human decision in the backend governance layer. It does not trigger wallet signature popups or direct blockchain transfers.
+          <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[11px] text-[var(--muted)] leading-relaxed">
+            ℹ️ <strong className="text-[var(--ink)] font-normal">Control-plane action:</strong> Approval records human decision in the backend governance layer. It does not trigger wallet signature popups or direct blockchain transfers.
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/[0.08]">
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-[var(--glass-b)]">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            className="btn h-10 px-4 text-xs font-medium"
           >
             Cancel
           </button>
@@ -125,10 +125,10 @@ export default function ApprovalConfirmationModal({
             type="button"
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition-all shadow flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="btn solid h-10 px-5 text-xs font-semibold flex items-center gap-2"
           >
             {isSubmitting && (
-              <span className="w-3.5 h-3.5 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin" />
+              <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
             )}
             <span>Confirm Approval</span>
           </button>

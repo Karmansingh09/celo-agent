@@ -73,11 +73,11 @@ export default function ApprovalRejectModal({
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md"
     >
-      <div className="w-full max-w-md rounded-2xl glass-panel-elevated p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-          <h2 id="approval-reject-title" className="text-base font-bold text-rose-400 flex items-center gap-2">
+      <div className="w-full max-w-md rounded-3xl glass p-7 space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-[var(--glass-b)] pb-3">
+          <h2 id="approval-reject-title" className="name text-2xl font-normal text-[var(--deny)] flex items-center gap-2">
             <span>Reject Spending Request?</span>
           </h2>
           <button
@@ -85,38 +85,38 @@ export default function ApprovalRejectModal({
             onClick={onClose}
             disabled={isSubmitting}
             aria-label="Close dialog"
-            className="text-slate-400 hover:text-white transition-colors text-sm p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+            className="text-[var(--muted)] hover:text-[var(--ink)] text-sm p-1 rounded"
           >
             ✕
           </button>
         </div>
 
         {error && (
-          <div className="p-3 text-xs rounded-lg glass-panel border-rose-500/30 bg-rose-950/20 text-rose-300">
+          <div className="p-3 text-xs rounded-xl border border-rose-500/30 bg-rose-500/10 text-[var(--deny)] font-mono">
             ⚠️ {error}
           </div>
         )}
 
         <form onSubmit={handleConfirm} className="space-y-4">
-          <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/[0.06] space-y-2 text-xs font-mono">
+          <div className="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] space-y-2 text-xs font-mono">
             <div className="flex justify-between items-center">
-              <span className="text-slate-400 font-sans">Agent:</span>
-              <span className="text-white font-bold">{agentName}</span>
+              <span className="text-[var(--muted)] font-sans">Agent:</span>
+              <span className="text-[var(--ink)] font-bold">{agentName}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-slate-400 font-sans">Amount:</span>
-              <span className="text-rose-300 font-bold tabular-nums">${approval.amountCusd} cUSD</span>
+              <span className="text-[var(--muted)] font-sans">Amount:</span>
+              <span className="text-[var(--deny)] font-bold tabular-nums">${approval.amountCusd} cUSD</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-slate-400 font-sans">Recipient:</span>
-              <span className="text-slate-300" title={approval.recipient}>
-                {approval.recipient.slice(0, 8)}...{approval.recipient.slice(-6)}
+              <span className="text-[var(--muted)] font-sans">Recipient:</span>
+              <span className="text-[var(--ink)]" title={approval.recipient}>
+                {approval.recipient.slice(0, 8)}…{approval.recipient.slice(-6)}
               </span>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="rejection-reason" className="block text-xs font-medium text-slate-300">
+            <label htmlFor="rejection-reason" className="block text-xs font-medium text-[var(--ink)]">
               Optional Rejection Reason
             </label>
             <textarea
@@ -125,31 +125,31 @@ export default function ApprovalRejectModal({
               maxLength={500}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Provide context for why this request is denied (e.g. Unplanned recipient or limit exhausted)..."
-              className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900/60 border border-white/[0.08] text-white placeholder-slate-500 focus:outline-none focus:border-rose-500/60 resize-none font-sans"
+              placeholder="Provide context for why this request is denied..."
+              className="w-full px-3.5 py-2.5 text-xs rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--deny)] resize-none font-sans"
             />
-            <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+            <div className="flex justify-between text-[10px] text-[var(--muted)] font-mono">
               <span>Recorded in agent audit trail</span>
               <span>{reason.length}/500</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/[0.08]">
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-[var(--glass-b)]">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-white/[0.08] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="btn h-10 px-4 text-xs font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 hover:border-rose-500/60 transition-all shadow flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+              className="btn solid h-10 px-5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-2"
             >
               {isSubmitting && (
-                <span className="w-3.5 h-3.5 border-2 border-rose-300 border-t-transparent rounded-full animate-spin" />
+                <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
               )}
               <span>Confirm Rejection</span>
             </button>
