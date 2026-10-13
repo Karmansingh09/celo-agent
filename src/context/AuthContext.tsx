@@ -200,7 +200,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const uri = window.location.origin;
 
       const chainHex: string = await ethereum.request({ method: 'eth_chainId' });
-      const currentChainId = parseInt(chainHex, 16);
+      let currentChainId = parseInt(chainHex, 16);
+
+      // Ensure wallet is switched to Celo Sepolia
+      if (currentChainId !== CELO_SEPOLIA_CHAIN_ID) {
+        try {
+          await ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${CELO_SEPOLIA_CHAIN_ID.toString(16)}` }],
+          });
+          const updatedHex: string = await ethereum.request({ method: 'eth_chainId' });
+          currentChainId = parseInt(updatedHex, 16);
+          setChainId(currentChainId);
+        } catch (switchErr: any) {
+          if (switchErr?.code === 4902) {
+            await ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: `0x${CELO_SEPOLIA_CHAIN_ID.toString(16)}`,
+                  chainName: 'Celo Sepolia Testnet',
+                  nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+                  rpcUrls: ['https://forno.celo-sepolia.celo-testnet.org'],
+                  blockExplorerUrls: ['https://celo-sepolia.blockscout.com'],
+                },
+              ],
+            });
+            const updatedHex: string = await ethereum.request({ method: 'eth_chainId' });
+            currentChainId = parseInt(updatedHex, 16);
+            setChainId(currentChainId);
+          } else if (switchErr?.code === 4001) {
+            throw new Error('Please switch your wallet to Celo Sepolia (Chain ID 11142220) to sign in.');
+          } else {
+            console.warn('Network switch warning:', switchErr);
+          }
+        }
+      }
 
       // 3. Construct EIP-4361 SIWE message
       const message = createSiweMessage({

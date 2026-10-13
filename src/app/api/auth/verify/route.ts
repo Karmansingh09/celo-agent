@@ -60,28 +60,32 @@ export async function POST(req: Request) {
       }
     );
   } catch (err: unknown) {
-    if (err instanceof CsrfError) {
+    console.error('[auth/verify failure]:', err);
+
+    if (err instanceof CsrfError || (err instanceof Error && err.name === 'CsrfError')) {
       return NextResponse.json(
-        { success: false, error: err.message },
+        { success: false, error: (err as Error).message },
         { status: 403, headers: AUTH_CACHE_HEADERS }
       );
     }
-    if (err instanceof InvalidNonceError) {
+    if (err instanceof InvalidNonceError || (err instanceof Error && err.name === 'InvalidNonceError')) {
       return NextResponse.json(
-        { success: false, error: err.message },
+        { success: false, error: (err as Error).message },
         { status: 401, headers: AUTH_CACHE_HEADERS }
       );
     }
-    if (err instanceof AuthenticationError) {
+    if (err instanceof AuthenticationError || (err instanceof Error && err.name === 'AuthenticationError')) {
       return NextResponse.json(
-        { success: false, error: err.message },
+        { success: false, error: (err as Error).message },
         { status: 401, headers: AUTH_CACHE_HEADERS }
       );
     }
 
+    const message = err instanceof Error ? err.message : 'Internal server error during verification';
     return NextResponse.json(
-      { success: false, error: 'Internal server error during verification' },
+      { success: false, error: message },
       { status: 500, headers: AUTH_CACHE_HEADERS }
     );
   }
 }
+

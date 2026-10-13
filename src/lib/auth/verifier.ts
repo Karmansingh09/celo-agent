@@ -13,6 +13,24 @@ import {
   CsrfError,
 } from './types';
 
+function isDomainMatch(received: string, expected: string): boolean {
+  if (received.toLowerCase() === expected.toLowerCase()) return true;
+  if (process.env.NODE_ENV !== 'production') {
+    const norm = (d: string) => d.toLowerCase().replace(/^127\.0\.0\.1/, 'localhost');
+    return norm(received) === norm(expected);
+  }
+  return false;
+}
+
+function isOriginMatch(received: string, expected: string): boolean {
+  if (received.toLowerCase() === expected.toLowerCase()) return true;
+  if (process.env.NODE_ENV !== 'production') {
+    const norm = (o: string) => o.toLowerCase().replace(/127\.0\.0\.1/, 'localhost');
+    return norm(received) === norm(expected);
+  }
+  return false;
+}
+
 /**
  * Phase 7.4: SIWE Authentication & Verification Service
  * 
@@ -90,7 +108,7 @@ export class AuthService {
     }
 
     // Step 2: Validate domain binding
-    if (parsed.domain.toLowerCase() !== this.expectedDomain) {
+    if (!isDomainMatch(parsed.domain, this.expectedDomain)) {
       throw new AuthenticationError(
         `SIWE domain mismatch: expected "${this.expectedDomain}", received "${parsed.domain.toLowerCase()}"`
       );
@@ -104,7 +122,7 @@ export class AuthService {
       throw new AuthenticationError(`Invalid URI in SIWE message: ${parsed.uri}`);
     }
 
-    if (messageUriOrigin !== this.expectedOrigin) {
+    if (!isOriginMatch(messageUriOrigin, this.expectedOrigin)) {
       throw new AuthenticationError(
         `SIWE URI mismatch: expected origin "${this.expectedOrigin}", received "${messageUriOrigin}"`
       );
@@ -238,7 +256,7 @@ export class AuthService {
       throw new CsrfError('CSRF protection: missing Origin and Referer headers on state-changing request');
     }
 
-    if (incomingOrigin !== this.expectedOrigin) {
+    if (!isOriginMatch(incomingOrigin, this.expectedOrigin)) {
       throw new CsrfError(
         `CSRF protection: origin mismatch (expected "${this.expectedOrigin}", received "${incomingOrigin}")`
       );
