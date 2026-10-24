@@ -7,6 +7,7 @@ import {
   isValidPaymentRequestId,
   InvalidPaymentInputError,
 } from './types';
+import { parseCusdToBaseUnits } from '../policy/budget-types';
 
 /**
  * Phase 8.2: Pending Approval Repository Interface
@@ -131,20 +132,30 @@ export class InMemoryPendingApprovalStore implements IPendingApprovalStore {
     if (existingRequestId) {
       const existing = this.approvals.get(existingRequestId);
       if (existing) {
+        const existingAmountWei = parseCusdToBaseUnits(existing.amountCusd);
+        const incomingAmountWei = parseCusdToBaseUnits(approval.amountCusd);
         const matches =
-          existing.amountCusd === approval.amountCusd &&
+          existingAmountWei !== null &&
+          incomingAmountWei !== null &&
+          existingAmountWei === incomingAmountWei &&
           existing.recipient.trim().toLowerCase() === approval.recipient.trim().toLowerCase() &&
           existing.policyId === approval.policyId;
 
         if (!matches) {
           throw new PaymentIdempotencyConflictError(
             approval.idempotencyKey,
-            `Idempotency key "${approval.idempotencyKey}" already has a pending approval with conflicting parameters`
+            `Idempotency key "${approval.idempotencyKey}" already has an approval with conflicting parameters`
           );
         }
 
-        // Return existing clone if exact match
-        return this.cloneApproval(existing);
+        // Active approval records remain the idempotent result. Terminal records
+        // may be retried with the same exact parameters, but receive a new
+        // request ID and retain the old record for audit/history.
+        if (existing.status === 'PENDING' || existing.status === 'APPROVED') {
+          return this.cloneApproval(existing);
+        }
+
+        this.idempotencyMap.delete(idempKey);
       }
     }
 

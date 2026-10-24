@@ -4,6 +4,7 @@ import {
   IBudgetStore,
   ReservationRequest,
   ReservationResult,
+  ReservationExpectation,
   calculateAvailableBudget,
   formatBaseUnitsToCusd,
   getUtcCalendarWindowId,
@@ -256,14 +257,28 @@ export class InMemoryBudgetStore implements IBudgetStore {
           };
         }
 
-        // If previously released, do not permit re-use to avoid confusion
-        return {
-          success: false,
-          outcome: 'DENIED',
-          reservation: { ...existingRes },
-          reason: 'Previous reservation with this idempotency key was released after failure',
-          budgetState: { ...state },
-        };
+        if (
+          existingRes.status === 'RELEASED' &&
+          existingRes.retryableForApproval === true &&
+          request.requestId !== undefined &&
+          existingRes.requestId === request.requestId
+        ) {
+          // Approval finalization compensation is the one controlled case in
+          // which the same pending approval may acquire a fresh reservation.
+          // Keep the old record for audit, but move the idempotency index to the
+          // replacement reservation created below.
+          this.idempotencyMap.delete(idempKey);
+        } else {
+          // If previously released, do not permit ordinary re-use to avoid
+          // replaying a failed or uncertain payment.
+          return {
+            success: false,
+            outcome: 'DENIED',
+            reservation: { ...existingRes },
+            reason: 'Previous reservation with this idempotency key was released after failure',
+            budgetState: { ...state },
+          };
+        }
       }
     }
 
@@ -310,6 +325,7 @@ export class InMemoryBudgetStore implements IBudgetStore {
     const reservationId = `res_${now}_${Math.random().toString(36).slice(2, 9)}`;
     const reservation: BudgetReservation = {
       id: reservationId,
+      requestId: request.requestId,
       idempotencyKey: request.idempotencyKey,
       agentId: request.agentId,
       policyId: request.policyId,
@@ -466,6 +482,55 @@ export class InMemoryBudgetStore implements IBudgetStore {
   }
 
   /**
+   * Safely releases only a reservation that has not been submitted.
+   * This compare-and-set style operation is atomic within this process.
+   */
+  public async releaseReservationIfReserved(
+    reservationId: string,
+    reason: string,
+    expected?: ReservationExpectation
+  ): Promise<BudgetReservation> {
+    const res = this.reservations.get(reservationId);
+    if (!res) {
+      throw new Error(`Reservation not found: ${reservationId}`);
+    }
+
+    this.assertReservationExpectation(res, expected);
+
+    if (res.status !== 'RESERVED') {
+      return { ...res };
+    }
+
+    return this.releaseReservation(reservationId, reason);
+  }
+
+  public async releaseReservationForApprovalRetry(
+    reservationId: string,
+    reason: string,
+    expected: ReservationExpectation
+  ): Promise<BudgetReservation> {
+    const res = this.reservations.get(reservationId);
+    if (!res) {
+      throw new Error(`Reservation not found: ${reservationId}`);
+    }
+
+    this.assertReservationExpectation(res, expected);
+
+    if (res.status === 'RELEASED') {
+      res.retryableForApproval = true;
+      return { ...res };
+    }
+
+    if (res.status !== 'RESERVED') {
+      return { ...res };
+    }
+
+    const released = await this.releaseReservation(reservationId, reason);
+    res.retryableForApproval = true;
+    return { ...released, retryableForApproval: true };
+  }
+
+  /**
    * Transitions an uncertain or timed-out reservation to HELD_FOR_RECONCILIATION.
    * Preserves amountWei in reservedWei to prevent overspending until reconciliation confirms status.
    */
@@ -518,6 +583,35 @@ export class InMemoryBudgetStore implements IBudgetStore {
     }
     const res = this.reservations.get(resId);
     return res ? { ...res } : null;
+  }
+
+  public async listReservationsByAgentId(agentId: string): Promise<BudgetReservation[]> {
+    return Array.from(this.reservations.values())
+      .filter((reservation) => reservation.agentId === agentId)
+      .map((reservation) => ({ ...reservation }));
+  }
+
+  private assertReservationExpectation(
+    reservation: BudgetReservation,
+    expected?: ReservationExpectation
+  ): void {
+    if (!expected) {
+      return;
+    }
+
+    const amountMatches = reservation.amountWei === parseCusdToBaseUnits(expected.amountCusd);
+    const matches =
+      reservation.agentId === expected.agentId &&
+      reservation.idempotencyKey === expected.idempotencyKey &&
+      amountMatches &&
+      reservation.recipient.trim().toLowerCase() === expected.recipient.trim().toLowerCase() &&
+      reservation.policyId === expected.policyId;
+
+    if (!matches) {
+      throw new Error(
+        `Reservation ${reservation.id} does not match the expected payment identity`
+      );
+    }
   }
 
   /**

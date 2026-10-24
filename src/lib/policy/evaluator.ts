@@ -1,8 +1,10 @@
 import { parseUnits } from 'viem';
 import {
   AgentSpendingPolicy,
+  MAX_CUSD_DECIMAL_PLACES,
   PolicyPaymentRequest,
   PolicyEvaluationResult,
+  validatePolicyStructure,
 } from './types';
 
 /**
@@ -11,7 +13,7 @@ import {
  * Using 18 decimals allows exact integer/fixed-point BigInt comparisons
  * without floating-point rounding errors or premature multi-token assumptions.
  */
-export const CUSD_DECIMALS = 18;
+export const CUSD_DECIMALS = MAX_CUSD_DECIMAL_PLACES;
 
 /**
  * Safely parses a cUSD decimal string into an 18-decimal fixed-point BigInt without floating-point math.
@@ -64,9 +66,21 @@ export function evaluatePolicy(
   const evaluatedAt = currentTime;
   const agentId = request.agentId;
 
+  // Policy validation is repeated at the pure evaluator boundary so malformed
+  // limits cannot be interpreted as absent checks by direct callers.
+  const policyValidation = validatePolicyStructure(policy);
+  if (!policyValidation.valid) {
+    return {
+      decision: 'DENY',
+      reason: `Invalid spending policy: ${policyValidation.error || 'policy validation failed'}`,
+      agentId,
+      evaluatedAt,
+    };
+  }
+
   // 1. Policy Validity Checks
   // Check policy expiration
-  if (currentTime > policy.validUntil) {
+  if (currentTime >= policy.validUntil) {
     return {
       decision: 'DENY',
       reason: 'Policy has expired',
@@ -97,6 +111,7 @@ export function evaluatePolicy(
   }
 
   // 3. Recipient Control (Allowlist)
+  // An empty list is the explicitly supported unrestricted-recipient policy.
   if (Array.isArray(policy.allowedRecipients) && policy.allowedRecipients.length > 0) {
     const requestedRecipient = (request.recipient || '').trim().toLowerCase();
     const isAuthorized = policy.allowedRecipients.some(
@@ -115,7 +130,15 @@ export function evaluatePolicy(
 
   // 4. Per-Transaction Limit Check
   const maxPerTxWei = parseMonetaryAmountToBigInt(policy.maxPerTransaction);
-  if (maxPerTxWei !== null && requestedAmountWei > maxPerTxWei) {
+  if (maxPerTxWei === null) {
+    return {
+      decision: 'DENY',
+      reason: 'Invalid spending policy: maxPerTransaction could not be parsed',
+      agentId,
+      evaluatedAt,
+    };
+  }
+  if (requestedAmountWei > maxPerTxWei) {
     return {
       decision: 'DENY',
       reason: 'Amount exceeds per-transaction limit',
@@ -126,7 +149,15 @@ export function evaluatePolicy(
 
   // 5. Auto-Approval Threshold Check
   const autoApproveWei = parseMonetaryAmountToBigInt(policy.autoApproveThreshold);
-  if (autoApproveWei !== null && requestedAmountWei > autoApproveWei) {
+  if (autoApproveWei === null) {
+    return {
+      decision: 'DENY',
+      reason: 'Invalid spending policy: autoApproveThreshold could not be parsed',
+      agentId,
+      evaluatedAt,
+    };
+  }
+  if (requestedAmountWei > autoApproveWei) {
     return {
       decision: 'REQUIRE_USER_APPROVAL',
       reason: 'User approval required above automatic approval threshold',

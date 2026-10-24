@@ -57,6 +57,8 @@ export type ReservationAcquireOutcome =
 export interface BudgetReservation {
   /** Unique stable reservation identifier (e.g., "res_1750000000000_abc123") */
   id: string;
+  /** Canonical payment request identifier when acquired through AgentPaymentService */
+  requestId?: string;
   /** Client or agent-provided idempotency key preventing duplicate executions (scoped per agent) */
   idempotencyKey: string;
   /** Unique identifier of the agent */
@@ -81,6 +83,16 @@ export interface BudgetReservation {
   txHash?: string;
   /** Reason for release or transition to reconciliation hold */
   failureReason?: string;
+  /** True only for a reservation released while approval finalization remained retryable */
+  retryableForApproval?: boolean;
+}
+
+export interface ReservationExpectation {
+  agentId: string;
+  idempotencyKey: string;
+  amountCusd: string;
+  recipient: string;
+  policyId?: string;
 }
 
 /**
@@ -128,6 +140,8 @@ export interface AgentBudgetState {
 export interface ReservationRequest {
   /** Agent requesting the payment */
   agentId: string;
+  /** Canonical payment request identifier, when available */
+  requestId?: string;
   /** Optional policy identifier */
   policyId?: string;
   /** Amount requested in cUSD (decimal string e.g. "0.08") */
@@ -197,6 +211,28 @@ export interface IBudgetStore {
   releaseReservation(reservationId: string, reason: string): Promise<BudgetReservation>;
 
   /**
+   * Releases a reservation only when it is still RESERVED.
+   * Already submitted, committed, uncertain, or released reservations are
+   * returned unchanged and are never released by this operation.
+   */
+  releaseReservationIfReserved(
+    reservationId: string,
+    reason: string,
+    expected?: ReservationExpectation
+  ): Promise<BudgetReservation>;
+
+  /**
+   * Releases a still-RESERVED approval reservation and marks it eligible for
+   * retrying the same pending approval. Ordinary execution failures must not
+   * use this operation.
+   */
+  releaseReservationForApprovalRetry(
+    reservationId: string,
+    reason: string,
+    expected: ReservationExpectation
+  ): Promise<BudgetReservation>;
+
+  /**
    * Transitions an uncertain or timed-out reservation to HELD_FOR_RECONCILIATION.
    * Preserves amountWei in reservedWei to prevent overspending until reconciliation confirms status.
    * Threshold: RECONCILIATION_THRESHOLD_MS (5 minutes). Triggers investigation, never auto-release.
@@ -213,6 +249,9 @@ export interface IBudgetStore {
    * Idempotency keys are explicitly scoped per agent.
    */
   getReservationByIdempotencyKey(agentId: string, idempotencyKey: string): Promise<BudgetReservation | null>;
+
+  /** Lists all reservations for termination/reconciliation workflows. */
+  listReservationsByAgentId(agentId: string): Promise<BudgetReservation[]>;
 }
 
 // ============================================================================

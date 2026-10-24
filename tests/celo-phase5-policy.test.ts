@@ -45,6 +45,21 @@ describe('Phase 5.1: Policy Data Model & Structure Validation', () => {
     expect(res.error).toContain('maxPerTransaction');
   });
 
+  it('4a. should reject zero and over-precision monetary limits', () => {
+    for (const value of ['0', '0.00', '1.1234567890123456789']) {
+      const res = validatePolicyStructure({ ...validPolicy, maxPerTransaction: value });
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain('maxPerTransaction');
+    }
+
+    const autoApprovalResult = validatePolicyStructure({
+      ...validPolicy,
+      autoApproveThreshold: '0.0000000000000000000',
+    });
+    expect(autoApprovalResult.valid).toBe(false);
+    expect(autoApprovalResult.error).toContain('autoApproveThreshold');
+  });
+
   it('5. should reject invalid maxPerDay decimal strings', () => {
     const invalid = { ...validPolicy, maxPerDay: 'abc' };
     const res = validatePolicyStructure(invalid);
@@ -79,6 +94,15 @@ describe('Phase 5.1: Policy Data Model & Structure Validation', () => {
     const resType = validatePolicyStructure(invalidType);
     expect(resType.valid).toBe(false);
     expect(resType.error).toContain('validUntil');
+
+    const nonFinite = validatePolicyStructure({ ...validPolicy, validUntil: Infinity });
+    expect(nonFinite.valid).toBe(false);
+    expect(nonFinite.error).toContain('validUntil');
+  });
+
+  it('8a. should accept an empty recipient list as an explicit unrestricted policy', () => {
+    const unrestricted = validatePolicyStructure({ ...validPolicy, allowedRecipients: [] });
+    expect(unrestricted.valid).toBe(true);
   });
 
   it('9. should correctly model PolicyDecision states ALLOW, REQUIRE_USER_APPROVAL, and DENY', () => {

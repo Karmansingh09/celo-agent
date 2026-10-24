@@ -134,6 +134,26 @@ describe('Phase 5.2: Policy Evaluation Logic', () => {
     expect(result.decision).toBe('ALLOW');
   });
 
+  it('9a. should deny rather than skip malformed policy limits', () => {
+    const malformedPolicy: AgentSpendingPolicy = {
+      ...standardPolicy,
+      maxPerTransaction: '0',
+    };
+
+    const result = evaluatePolicy(
+      malformedPolicy,
+      {
+        agentId: standardPolicy.agentId,
+        amount: '0.03',
+        recipient: validRecipient,
+      },
+      baseTimestamp
+    );
+
+    expect(result.decision).toBe('DENY');
+    expect(result.reason).toContain('Invalid spending policy');
+  });
+
   it('10. should return DENY for invalid amount strings (letters / malformed / NaN)', () => {
     const badAmounts = ['abc', 'NaN', 'undefined', '0.0.1', '10,00', '1e5'];
 

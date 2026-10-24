@@ -14,6 +14,12 @@ import {
   validateAgentMetadata,
 } from './types';
 import { IAgentStore, ListAgentsFilter, UpdateAgentStorePatch } from './store';
+import {
+  normalizeAgentOperationKey,
+  withAgentOperationLock,
+} from './operation-lock';
+
+export type AgentTerminationCleanup = (agent: Agent, reason: string) => Promise<unknown>;
 
 /**
  * Phase 7.3: Agent Management Service
@@ -79,10 +85,21 @@ export interface ListAgentsServiceFilter {
 }
 
 export class AgentService {
+  private terminationCleanup?: AgentTerminationCleanup;
+
   constructor(
     private readonly store: IAgentStore,
     private readonly clock: () => number = () => Date.now()
   ) {}
+
+  /**
+   * Registers the payment-domain cleanup callback used by the shared service
+   * wiring. The callback is invoked while the agent operation lock is held,
+   * and therefore must call a no-lock internal cleanup method.
+   */
+  public setTerminationCleanupHandler(handler?: AgentTerminationCleanup): void {
+    this.terminationCleanup = handler;
+  }
 
   /**
    * Retrieves a trusted timestamp from the injected clock provider.
@@ -175,7 +192,11 @@ export class AgentService {
     }
 
     // Bind and validate spending policy
-    const boundPolicy = resolveAndBindAgentPolicy(input.spendingPolicy, resolvedAgentId);
+    const boundPolicy = resolveAndBindAgentPolicy(
+      input.spendingPolicy,
+      resolvedAgentId,
+      nowMs
+    );
 
     // Prepare complete Agent domain record
     const agentRecord: Agent = {
@@ -307,13 +328,12 @@ export class AgentService {
       validateAgentMetadata(input.metadata);
     }
 
+    const trustedNow = this.getTrustedTimestamp(existing.updatedAt);
+
     let boundPolicy = undefined;
     if (input.spendingPolicy !== undefined) {
-      boundPolicy = resolveAndBindAgentPolicy(input.spendingPolicy, existing.id);
+      boundPolicy = resolveAndBindAgentPolicy(input.spendingPolicy, existing.id, trustedNow);
     }
-
-    // Ensure clock time is valid and non-decreasing
-    this.getTrustedTimestamp(existing.updatedAt);
 
     const patch: UpdateAgentStorePatch = {
       name: input.name !== undefined ? input.name.trim() : undefined,
@@ -400,6 +420,16 @@ export class AgentService {
     agentId: string,
     reason?: string
   ): Promise<Agent> {
+    return withAgentOperationLock(normalizeAgentOperationKey(agentId), () =>
+      this.terminateAgentInternal(authenticatedOwnerAddress, agentId, reason)
+    );
+  }
+
+  private async terminateAgentInternal(
+    authenticatedOwnerAddress: string,
+    agentId: string,
+    reason?: string
+  ): Promise<Agent> {
     const normalizedOwner = normalizeOwnerAddress(authenticatedOwnerAddress);
 
     if (typeof agentId !== 'string' || agentId.trim() === '') {
@@ -414,13 +444,33 @@ export class AgentService {
     }
 
     this.assertOwnership(existing, normalizedOwner);
+
+    if (existing.status === 'TERMINATED') {
+      if (!this.terminationCleanup) {
+        assertValidStateTransition(existing.status, 'TERMINATED');
+      }
+
+      await this.terminationCleanup?.(
+        existing,
+        existing.statusReason || validatedReason || 'Agent permanently terminated'
+      );
+      return existing;
+    }
+
     assertValidStateTransition(existing.status, 'TERMINATED');
 
     this.getTrustedTimestamp(existing.updatedAt);
 
-    return this.store.updateAgent(existing.id, {
+    const terminated = await this.store.updateAgent(existing.id, {
       status: 'TERMINATED',
       statusReason: validatedReason,
     });
+
+    await this.terminationCleanup?.(
+      terminated,
+      terminated.statusReason || validatedReason || 'Agent permanently terminated'
+    );
+
+    return terminated;
   }
 }

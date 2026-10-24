@@ -1,3 +1,5 @@
+import { parseUnits } from 'viem';
+
 /**
  * Phase 5.1: Policy Data Model
  * 
@@ -16,6 +18,9 @@
  */
 export type PolicyDecision = 'ALLOW' | 'REQUIRE_USER_APPROVAL' | 'DENY';
 
+/** Maximum cUSD fractional precision supported by the policy and budget layers. */
+export const MAX_CUSD_DECIMAL_PLACES = 18;
+
 /**
  * Definition of an Agent Spending Policy.
  * Establishes the financial boundaries and recipient permissions for an autonomous AI agent.
@@ -27,7 +32,11 @@ export interface AgentSpendingPolicy {
   maxPerTransaction: string;
   /** Maximum total cUSD allowed per day/window (decimal string e.g., "0.50") */
   maxPerDay: string;
-  /** List of authorized recipient EVM addresses (0x... checksummed strings) */
+  /**
+   * List of authorized recipient EVM addresses (0x... checksummed strings).
+   * An empty list intentionally means that any valid recipient is permitted;
+   * a non-empty list is an explicit allowlist.
+   */
   allowedRecipients: string[];
   /** Amount threshold in cUSD up to which payments are auto-approved without user prompt (decimal string e.g., "0.05") */
   autoApproveThreshold: string;
@@ -64,6 +73,30 @@ export interface PolicyEvaluationResult {
 }
 
 /**
+ * Validates a strictly positive, fixed-point decimal amount for cUSD policy fields.
+ * Values must contain no exponent/sign notation and no more than 18 fractional digits.
+ */
+export function isValidPositiveCusdAmount(value: unknown): value is string {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const trimmed = value.trim();
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(trimmed);
+  if (!match) {
+    return false;
+  }
+
+  const fractionalPart = match[2] || '';
+  if (fractionalPart.length > MAX_CUSD_DECIMAL_PLACES) {
+    return false;
+  }
+
+  // Avoid Number/parseFloat so policy validation cannot lose monetary precision.
+  return /[1-9]/.test(match[1]) || /[1-9]/.test(fractionalPart);
+}
+
+/**
  * Validates the basic structural validity of an AgentSpendingPolicy object.
  *
  * @param policy Object to validate
@@ -80,17 +113,15 @@ export function validatePolicyStructure(policy: unknown): { valid: boolean; erro
     return { valid: false, error: 'agentId must be a non-empty string' };
   }
 
-  const isDecimalStr = (val: unknown) => typeof val === 'string' && /^\d+(\.\d+)?$/.test(val.trim());
-
-  if (!isDecimalStr(p.maxPerTransaction)) {
+  if (!isValidPositiveCusdAmount(p.maxPerTransaction)) {
     return { valid: false, error: 'maxPerTransaction must be a positive decimal string' };
   }
 
-  if (!isDecimalStr(p.maxPerDay)) {
+  if (!isValidPositiveCusdAmount(p.maxPerDay)) {
     return { valid: false, error: 'maxPerDay must be a positive decimal string' };
   }
 
-  if (!isDecimalStr(p.autoApproveThreshold)) {
+  if (!isValidPositiveCusdAmount(p.autoApproveThreshold)) {
     return { valid: false, error: 'autoApproveThreshold must be a positive decimal string' };
   }
 
@@ -104,8 +135,88 @@ export function validatePolicyStructure(policy: unknown): { valid: boolean; erro
     }
   }
 
-  if (typeof p.validUntil !== 'number' || isNaN(p.validUntil) || p.validUntil <= 0) {
-    return { valid: false, error: 'validUntil must be a positive numeric Unix timestamp in milliseconds' };
+  if (
+    typeof p.validUntil !== 'number' ||
+    !Number.isSafeInteger(p.validUntil) ||
+    p.validUntil <= 0
+  ) {
+    return {
+      valid: false,
+      error: 'validUntil must be a positive integer Unix timestamp in milliseconds',
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validates policy values at a trusted server/storage boundary.
+ * Unlike structural validation, this rejects expired policies and enforces
+ * the relationships used by the create-agent UI.
+ */
+export function validatePolicyForStorage(
+  policy: unknown,
+  trustedNow: number = Date.now()
+): { valid: boolean; error?: string } {
+  const structuralValidation = validatePolicyStructure(policy);
+  if (!structuralValidation.valid) {
+    return structuralValidation;
+  }
+
+  if (!Number.isSafeInteger(trustedNow) || trustedNow < 0) {
+    return { valid: false, error: 'trustedNow must be a non-negative safe integer timestamp' };
+  }
+
+  const p = policy as AgentSpendingPolicy;
+  if (p.validUntil <= trustedNow) {
+    return { valid: false, error: 'validUntil must be in the future' };
+  }
+
+  const relationshipValidation = validatePolicyRelationships(policy);
+  if (!relationshipValidation.valid) {
+    return relationshipValidation;
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validates policy relationships without applying a time-expiration decision.
+ * Runtime evaluators use this so expired policies retain their domain-level
+ * "Policy has expired" decision while still failing closed on malformed limits.
+ */
+export function validatePolicyRelationships(
+  policy: unknown
+): { valid: boolean; error?: string } {
+  const structuralValidation = validatePolicyStructure(policy);
+  if (!structuralValidation.valid) {
+    return structuralValidation;
+  }
+
+  const p = policy as AgentSpendingPolicy;
+  let maxPerTransactionWei: bigint;
+  let maxPerDayWei: bigint;
+  let autoApproveThresholdWei: bigint;
+  try {
+    maxPerTransactionWei = parseUnits(p.maxPerTransaction.trim(), MAX_CUSD_DECIMAL_PLACES);
+    maxPerDayWei = parseUnits(p.maxPerDay.trim(), MAX_CUSD_DECIMAL_PLACES);
+    autoApproveThresholdWei = parseUnits(
+      p.autoApproveThreshold.trim(),
+      MAX_CUSD_DECIMAL_PLACES
+    );
+  } catch {
+    return { valid: false, error: 'Policy monetary values could not be parsed' };
+  }
+
+  if (maxPerTransactionWei > maxPerDayWei) {
+    return { valid: false, error: 'maxPerTransaction cannot exceed maxPerDay' };
+  }
+
+  if (autoApproveThresholdWei > maxPerTransactionWei) {
+    return {
+      valid: false,
+      error: 'autoApproveThreshold cannot exceed maxPerTransaction',
+    };
   }
 
   return { valid: true };

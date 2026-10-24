@@ -1,6 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { parseCusdToBaseUnits } from '@/lib/policy/budget-types';
+import {
+  getDefaultPolicyExpirationInput,
+  parsePolicyExpirationInput,
+} from '@/lib/policy/expiration';
 
 interface CreateAgentModalProps {
   isOpen: boolean;
@@ -19,6 +24,7 @@ export default function CreateAgentModal({
   const [maxPerTransaction, setMaxPerTransaction] = useState<string>('5.00');
   const [maxPerDay, setMaxPerDay] = useState<string>('25.00');
   const [autoApproveThreshold, setAutoApproveThreshold] = useState<string>('2.00');
+  const [validUntilInput, setValidUntilInput] = useState<string>(() => getDefaultPolicyExpirationInput());
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -61,44 +67,36 @@ export default function CreateAgentModal({
       }
     }
 
-    const isDecimalStr = (val: string) => /^\d+(\.\d+)?$/.test(val.trim());
-
-    if (!isDecimalStr(maxPerTransaction)) {
-      setFormError('Maximum per transaction must be a positive decimal number (e.g. "5.00").');
+    const perTxWei = parseCusdToBaseUnits(maxPerTransaction.trim());
+    if (perTxWei === null) {
+      setFormError('Maximum per transaction must be a positive cUSD amount with at most 18 decimals.');
       return false;
     }
 
-    if (!isDecimalStr(maxPerDay)) {
-      setFormError('Maximum per day must be a positive decimal number (e.g. "25.00").');
+    const perDayWei = parseCusdToBaseUnits(maxPerDay.trim());
+    if (perDayWei === null) {
+      setFormError('Maximum per day must be a positive cUSD amount with at most 18 decimals.');
       return false;
     }
 
-    if (!isDecimalStr(autoApproveThreshold)) {
-      setFormError('Auto-approval threshold must be a positive decimal number (e.g. "2.00").');
+    const autoApproveWei = parseCusdToBaseUnits(autoApproveThreshold.trim());
+    if (autoApproveWei === null) {
+      setFormError('Auto-approval threshold must be a positive cUSD amount with at most 18 decimals.');
       return false;
     }
 
-    try {
-      const perTx = parseFloat(maxPerTransaction);
-      const perDay = parseFloat(maxPerDay);
-      const autoAppr = parseFloat(autoApproveThreshold);
+    if (perTxWei > perDayWei) {
+      setFormError('Maximum per transaction cannot exceed the daily spending limit.');
+      return false;
+    }
 
-      if (perTx <= 0 || perDay <= 0 || autoAppr <= 0) {
-        setFormError('All spending limits must be greater than zero.');
-        return false;
-      }
+    if (autoApproveWei > perTxWei) {
+      setFormError('Auto-approval threshold cannot exceed the maximum per transaction limit.');
+      return false;
+    }
 
-      if (perTx > perDay) {
-        setFormError('Maximum per transaction cannot exceed the daily spending limit.');
-        return false;
-      }
-
-      if (autoAppr > perTx) {
-        setFormError('Auto-approval threshold cannot exceed the maximum per transaction limit.');
-        return false;
-      }
-    } catch {
-      setFormError('Invalid numbers provided.');
+    if (parsePolicyExpirationInput(validUntilInput) === null) {
+      setFormError('Policy expiration must be a future date and time.');
       return false;
     }
 
@@ -116,6 +114,12 @@ export default function CreateAgentModal({
     setFormError(null);
 
     try {
+      const validUntil = parsePolicyExpirationInput(validUntilInput);
+      if (validUntil === null) {
+        setFormError('Policy expiration must be a future date and time.');
+        return;
+      }
+
       const payload = {
         name: name.trim(),
         description: description.trim() || undefined,
@@ -125,6 +129,7 @@ export default function CreateAgentModal({
           maxPerDay: maxPerDay.trim(),
           autoApproveThreshold: autoApproveThreshold.trim(),
           allowedRecipients: [],
+          validUntil,
         },
       };
 
@@ -149,6 +154,7 @@ export default function CreateAgentModal({
       setMaxPerTransaction('5.00');
       setMaxPerDay('25.00');
       setAutoApproveThreshold('2.00');
+      setValidUntilInput(getDefaultPolicyExpirationInput());
 
       onSuccess();
       onClose();
@@ -286,6 +292,22 @@ export default function CreateAgentModal({
                 <span className="absolute right-3 top-2 text-[10px] font-mono text-[var(--muted)]">cUSD</span>
               </div>
               <p className="text-[10px] text-[var(--muted)] mt-1">Requests above this queue for owner sign-off</p>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-[var(--muted)] mb-1">
+                Policy Expiration *
+              </label>
+              <input
+                type="datetime-local"
+                required
+                value={validUntilInput}
+                onChange={(e) => setValidUntilInput(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl bg-black/5 dark:bg-white/5 border border-[var(--glass-b)] text-[var(--ink)] font-mono focus:outline-none focus:border-[var(--accent)]"
+              />
+              <p className="text-[10px] text-[var(--muted)] mt-1">
+                Requests are denied after this date and time.
+              </p>
             </div>
           </div>
 

@@ -214,6 +214,84 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
     expect(res).toBeNull();
   });
 
+  it('5a. Enforces policy cross-field invariants before reservation', async () => {
+    const inconsistentPolicy: AgentSpendingPolicy = {
+      ...defaultPolicy,
+      maxPerTransaction: '2.00',
+      maxPerDay: '1.00',
+    };
+
+    const result = await service.enforcePayment(inconsistentPolicy, {
+      agentId,
+      amountCusd: '0.08',
+      recipient: recipientAuthorized,
+      idempotencyKey: 'invalid-policy-relationship-001',
+    });
+
+    expect(result.outcome).toBe('POLICY_DENIED');
+    expect(result.reason).toContain('maxPerTransaction');
+    expect(
+      await store.getReservationByIdempotencyKey(agentId, 'invalid-policy-relationship-001')
+    ).toBeNull();
+  });
+
+  it('5b. Rejects malformed approval timestamps and the exact expiration boundary', async () => {
+    const baseApproval: UserApproval = {
+      approvalId: 'approval-timestamp-boundary',
+      agentId,
+      amountCusd: '0.15',
+      recipient: recipientAuthorized,
+      idempotencyKey: 'approval-timestamp-boundary-001',
+      approvedAt: baseTime - 1,
+      validUntil: baseTime + 1,
+    };
+    const request: EnforcePaymentRequest = {
+      agentId,
+      amountCusd: '0.15',
+      recipient: recipientAuthorized,
+      idempotencyKey: baseApproval.idempotencyKey,
+    };
+
+    const malformed = await service.enforcePayment(defaultPolicy, {
+      ...request,
+      approval: { ...baseApproval, approvedAt: Number.NaN },
+    });
+    expect(malformed.outcome).toBe('POLICY_DENIED');
+    expect(malformed.reason).toContain('timestamps');
+
+    currentTime = baseTime + 1;
+    const expired = await service.enforcePayment(defaultPolicy, {
+      ...request,
+      approval: baseApproval,
+    });
+    expect(expired.outcome).toBe('POLICY_DENIED');
+    expect(expired.reason).toContain('expired');
+  });
+
+  it('5c. Rejects malformed supplied approval metadata for an otherwise auto-approved request', async () => {
+    const result = await service.enforcePayment(defaultPolicy, {
+      agentId,
+      amountCusd: '0.05',
+      recipient: recipientAuthorized,
+      idempotencyKey: 'malformed-auto-approval-metadata-001',
+      approval: {
+        approvalId: 'malformed-auto-approval-metadata',
+        agentId,
+        amountCusd: '0.05',
+        recipient: recipientAuthorized,
+        idempotencyKey: 'malformed-auto-approval-metadata-001',
+        approvedAt: Number.NaN,
+        validUntil: baseTime + 60_000,
+      },
+    });
+
+    expect(result.outcome).toBe('POLICY_DENIED');
+    expect(result.reason).toContain('timestamps');
+    expect(
+      await store.getReservationByIdempotencyKey(agentId, 'malformed-auto-approval-metadata-001')
+    ).toBeNull();
+  });
+
   it('6. TRUSTED TIME: daily calendar window is governed by trusted service clock', async () => {
     // Service clock at Day 1
     currentTime = Date.parse('2026-10-03T23:55:00.000Z');
@@ -667,4 +745,3 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
     );
   });
 });
-

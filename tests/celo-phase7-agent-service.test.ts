@@ -109,6 +109,40 @@ describe('Phase 7.3: AgentService', () => {
       ).rejects.toThrow(InvalidAgentInputError);
     });
 
+    it('rejects expired policies and inconsistent spending-limit relationships at the server boundary', async () => {
+      await expect(
+        service.createAgent(owner1, {
+          name: 'Expired Policy Agent',
+          spendingPolicy: {
+            ...defaultPolicy,
+            validUntil: baseTime,
+          },
+        })
+      ).rejects.toThrow(/validUntil must be in the future/);
+
+      await expect(
+        service.createAgent(owner1, {
+          name: 'Inconsistent Policy Agent',
+          spendingPolicy: {
+            ...defaultPolicy,
+            maxPerTransaction: '0.60',
+            maxPerDay: '0.50',
+          },
+        })
+      ).rejects.toThrow(/maxPerTransaction cannot exceed maxPerDay/);
+
+      await expect(
+        service.createAgent(owner1, {
+          name: 'Wide Approval Policy Agent',
+          spendingPolicy: {
+            ...defaultPolicy,
+            autoApproveThreshold: '0.20',
+            maxPerTransaction: '0.10',
+          },
+        })
+      ).rejects.toThrow(/autoApproveThreshold cannot exceed maxPerTransaction/);
+    });
+
     it('normalizes ownerAddress and walletAddress to checksummed EVM format', async () => {
       const lowerOwner = owner1.toLowerCase();
       const lowerWallet = owner2.toLowerCase();

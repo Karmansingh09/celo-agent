@@ -1,7 +1,7 @@
 import {
   AgentSpendingPolicy,
   PolicyEvaluationResult,
-  validatePolicyStructure,
+  validatePolicyRelationships,
 } from './types';
 import { evaluatePolicy } from './evaluator';
 import {
@@ -9,6 +9,7 @@ import {
   BudgetReservation,
   IBudgetStore,
   ReservationRequest,
+  ReservationExpectation,
   parseCusdToBaseUnits,
 } from './budget-types';
 
@@ -104,6 +105,8 @@ export interface TrustedSettlementConfirmation {
 export interface EnforcePaymentRequest {
   /** Unique identifier of the agent requesting payment */
   agentId: string;
+  /** Canonical payment request identifier, when available */
+  requestId?: string;
   /** Requested payment amount in cUSD (decimal string e.g., "0.08") */
   amountCusd: string;
   /** Recipient EVM address (0x...) */
@@ -186,20 +189,55 @@ export class PolicyEnforcementService {
     // 1. Trusted Time: Always use service-side clock (prevents backdating attacks)
     const trustedNow = this.clock();
 
-    // 2. Validate Policy Structure
-    const policyStructCheck = validatePolicyStructure(policy);
-    if (!policyStructCheck.valid) {
+    // 2. Validate the complete policy contract at the enforcement boundary.
+    const policyValidation = validatePolicyRelationships(policy);
+    if (!policyValidation.valid) {
       return {
         allowedToExecute: false,
         outcome: 'POLICY_DENIED',
-        reason: policyStructCheck.error || 'Invalid spending policy structure',
+        reason: policyValidation.error || 'Invalid spending policy',
         policyEvaluation: {
           decision: 'DENY',
-          reason: policyStructCheck.error || 'Invalid spending policy structure',
+          reason: policyValidation.error || 'Invalid spending policy',
           agentId: request.agentId,
           evaluatedAt: trustedNow,
         },
       };
+    }
+
+    // Validate supplied approval metadata before policy evaluation. Approval
+    // data must fail closed even when the request would otherwise be allowed
+    // automatically and would not need an approval attestation.
+    if (request.approval !== undefined) {
+      const suppliedApproval = request.approval as unknown;
+      const approvalRecord =
+        suppliedApproval !== null &&
+        typeof suppliedApproval === 'object' &&
+        !Array.isArray(suppliedApproval)
+          ? (suppliedApproval as Record<string, unknown>)
+          : undefined;
+      const hasValidTimestampFields =
+        approvalRecord !== undefined &&
+        typeof approvalRecord.approvedAt === 'number' &&
+        Number.isSafeInteger(approvalRecord.approvedAt) &&
+        approvalRecord.approvedAt > 0 &&
+        typeof approvalRecord.validUntil === 'number' &&
+        Number.isSafeInteger(approvalRecord.validUntil) &&
+        approvalRecord.validUntil > 0;
+
+      if (!hasValidTimestampFields) {
+        return {
+          allowedToExecute: false,
+          outcome: 'POLICY_DENIED',
+          reason: 'User approval timestamps must be positive safe integers',
+          policyEvaluation: {
+            decision: 'DENY',
+            reason: 'User approval timestamps must be positive safe integers',
+            agentId: request.agentId,
+            evaluatedAt: trustedNow,
+          },
+        };
+      }
     }
 
     // 3. Policy Identifier Consistency Check (if defined on policy object)
@@ -329,7 +367,7 @@ export class PolicyEnforcementService {
       }
 
       // f. Expiry / freshness check
-      if (trustedNow > request.approval.validUntil) {
+      if (trustedNow >= request.approval.validUntil) {
         return {
           allowedToExecute: false,
           outcome: 'POLICY_DENIED',
@@ -363,6 +401,7 @@ export class PolicyEnforcementService {
     const effectivePolicyId = policyIdOnPolicy || request.policyId;
     const reservationRequest: ReservationRequest = {
       agentId: request.agentId,
+      requestId: request.requestId,
       policyId: effectivePolicyId,
       amountCusd: request.amountCusd,
       recipient: request.recipient,
@@ -499,6 +538,33 @@ export class PolicyEnforcementService {
   }
 
   /**
+   * Releases a reservation only if it is still RESERVED. This is used for
+   * compensating a reservation when a later approval finalization step fails.
+   */
+  public async releaseReservationIfReserved(
+    reservationId: string,
+    reason: string,
+    expected?: ReservationExpectation
+  ): Promise<BudgetReservation> {
+    return this.budgetStore.releaseReservationIfReserved(reservationId, reason, expected);
+  }
+
+  /**
+   * Compensation-only release that makes the same pending approval retryable.
+   */
+  public async releaseReservationForApprovalRetry(
+    reservationId: string,
+    reason: string,
+    expected: ReservationExpectation
+  ): Promise<BudgetReservation> {
+    return this.budgetStore.releaseReservationForApprovalRetry(
+      reservationId,
+      reason,
+      expected
+    );
+  }
+
+  /**
    * Post-execution timeout / uncertain status: holds reservation for reconciliation.
    * Transitions status to HELD_FOR_RECONCILIATION.
    * 
@@ -518,6 +584,20 @@ export class PolicyEnforcementService {
    */
   public async getReservationById(reservationId: string): Promise<BudgetReservation | null> {
     return this.budgetStore.getReservationById(reservationId);
+  }
+
+  /**
+   * Retrieves the reservation associated with an agent-scoped idempotency key.
+   */
+  public async getReservationByIdempotencyKey(
+    agentId: string,
+    idempotencyKey: string
+  ): Promise<BudgetReservation | null> {
+    return this.budgetStore.getReservationByIdempotencyKey(agentId, idempotencyKey);
+  }
+
+  public async listReservationsByAgentId(agentId: string): Promise<BudgetReservation[]> {
+    return this.budgetStore.listReservationsByAgentId(agentId);
   }
 
   /**

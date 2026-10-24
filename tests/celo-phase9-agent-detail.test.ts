@@ -77,7 +77,7 @@ describe('Phase 9.4: Agent Detail + Control Room Backend & Frontend Invariants',
           maxPerDay: '25.00',
           autoApproveThreshold: '2.00',
           allowedRecipients: [],
-          validUntil: 1775000000000,
+          validUntil: Date.now() + 86_400_000,
         },
       }),
     });

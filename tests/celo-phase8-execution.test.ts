@@ -672,6 +672,84 @@ describe('Phase 8.3: Controlled Payment Execution Boundary', () => {
       expect(result1.status).toBe('SUBMITTED');
     });
 
+    it('21a. Holds the agent lock across external execution before termination cleanup', async () => {
+      let resolveExecution: (value: PaymentExecutionResult) => void;
+      const executionResult = new Promise<PaymentExecutionResult>((resolve) => {
+        resolveExecution = resolve;
+      });
+      executeMock.mockImplementationOnce(() => executionResult);
+
+      const { agent, reservation } = await setupActiveAgentWithReservation({
+        amountCusd: '0.50',
+      });
+      const executionPromise = paymentService.executeReservedPayment(OWNER_ALICE, {
+        agentId: agent.id,
+        reservationId: reservation.id,
+        asset: { kind: 'CUSD_ERC20' },
+        executionAmount: '0.50',
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      let terminationFinished = false;
+      const terminationPromise = paymentService
+        .terminateAgentAndCancelPendingApprovals(OWNER_ALICE, agent.id)
+        .then((terminated) => {
+          terminationFinished = true;
+          return terminated;
+        });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(terminationFinished).toBe(false);
+
+      resolveExecution!({
+        success: true,
+        status: 'SUBMITTED',
+        txHash: TX_HASH_VALID,
+      });
+
+      const execution = await executionPromise;
+      const terminated = await terminationPromise;
+      expect(execution.status).toBe('SUBMITTED');
+      expect(terminated.status).toBe('TERMINATED');
+      expect((await budgetStore.getReservationById(reservation.id))?.status).toBe('SUBMITTED');
+    });
+
+    it('21b. Keeps uncertain execution encumbered before termination can complete', async () => {
+      let resolveExecution: (value: PaymentExecutionResult) => void;
+      const executionResult = new Promise<PaymentExecutionResult>((resolve) => {
+        resolveExecution = resolve;
+      });
+      executeMock.mockImplementationOnce(() => executionResult);
+
+      const { agent, reservation } = await setupActiveAgentWithReservation({
+        amountCusd: '0.50',
+      });
+      const executionPromise = paymentService.executeReservedPayment(OWNER_ALICE, {
+        agentId: agent.id,
+        reservationId: reservation.id,
+        asset: { kind: 'CUSD_ERC20' },
+        executionAmount: '0.50',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const terminationPromise = paymentService.terminateAgentAndCancelPendingApprovals(
+        OWNER_ALICE,
+        agent.id
+      );
+
+      resolveExecution!({
+        success: false,
+        status: 'UNCERTAIN',
+        error: 'Network timeout during broadcast',
+      });
+
+      const execution = await executionPromise;
+      await terminationPromise;
+      expect(execution.status).toBe('UNCERTAIN');
+      expect((await budgetStore.getReservationById(reservation.id))?.status).toBe(
+        'HELD_FOR_RECONCILIATION'
+      );
+    });
+
     it('22. Cleans up in-flight set after completion allowing subsequent attempts if permitted', async () => {
       const { agent, reservation } = await setupActiveAgentWithReservation({
         amountCusd: '0.50',

@@ -9,6 +9,10 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { createSiweMessage } from 'viem/siwe';
 import { POST as verifyRoute } from '../src/app/api/auth/verify/route';
 import { GET as nonceRoute } from '../src/app/api/auth/nonce/route';
+import {
+  getDefaultPolicyExpirationInput,
+  parsePolicyExpirationInput,
+} from '../src/lib/policy/expiration';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -234,6 +238,18 @@ describe('Phase 9.3: Agents Management UI Backend & Frontend Invariants', () => 
     expect(content).toContain('maxPerTransaction: maxPerTransaction.trim()');
     expect(content).toContain('maxPerDay: maxPerDay.trim()');
     expect(content).toContain('autoApproveThreshold: autoApproveThreshold.trim()');
+    expect(content).toContain('validUntil,');
+    expect(content).toContain('type="datetime-local"');
+  });
+
+  it('4a. Create-agent expiration control converts only future timestamps', () => {
+    const now = Date.UTC(2026, 0, 1, 12, 0, 0);
+    const defaultValue = getDefaultPolicyExpirationInput(now);
+    const expiration = parsePolicyExpirationInput(defaultValue, now);
+
+    expect(expiration).toBeGreaterThan(now);
+    expect(parsePolicyExpirationInput('', now)).toBeNull();
+    expect(parsePolicyExpirationInput('2025-12-31T23:59', now)).toBeNull();
   });
 
   it('5. Frontend security invariants: No private keys and no deprecated payment endpoint in dashboard', () => {

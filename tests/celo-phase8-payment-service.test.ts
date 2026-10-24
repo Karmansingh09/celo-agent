@@ -6,6 +6,8 @@ import {
   PendingApprovalNotFoundError,
   PendingApprovalStateError,
   PendingApprovalExpiredError,
+  PendingApprovalCancellationError,
+  ApprovalFinalizationReconciliationError,
 } from '../src/lib/payment';
 import {
   AgentService,
@@ -143,11 +145,11 @@ describe('Phase 8.2: AgentPaymentService (Payment Orchestration & Approvals)', (
   });
 
   it('3. Budget denial (exceeding daily limit) → BUDGET_DENIED', async () => {
-    // Create an agent with maxPerTx = 2.00, maxPerDay = 1.00, autoApprove = 2.00
+    // Create an agent with maxPerTx = 1.00, maxPerDay = 1.00, autoApprove = 1.00
     const agent = await createTestAgent(ownerA, {
-      maxPerTransaction: '2.00',
+      maxPerTransaction: '1.00',
       maxPerDay: '1.00',
-      autoApproveThreshold: '2.00',
+      autoApproveThreshold: '1.00',
     });
 
     // 1st request for 0.80 cUSD -> RESERVED
@@ -173,6 +175,147 @@ describe('Phase 8.2: AgentPaymentService (Payment Orchestration & Approvals)', (
     expect(res2.outcome).toBe('BUDGET_DENIED');
     expect(res2.reservation).toBeUndefined();
     expect(res2.budgetState?.availableCusd).toBe('0.2');
+  });
+
+  it('3a. Releases a reservation when approval finalization fails', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'approval-finalization-failure-001',
+    };
+    const pendingResult = await paymentService.requestPayment(ownerA, request);
+
+    const originalTransition = pendingApprovalStore.transitionStatus.bind(pendingApprovalStore);
+    let injectedFailure = true;
+    vi.spyOn(pendingApprovalStore, 'transitionStatus').mockImplementation(async (...args) => {
+      if (injectedFailure && args[1] === 'PENDING' && args[2] === 'APPROVED') {
+        injectedFailure = false;
+        throw new Error('Injected approval finalization failure');
+      }
+      return originalTransition(...args);
+    });
+
+    await expect(
+      paymentService.approvePaymentRequest(ownerA, agent.id, pendingResult.requestId)
+    ).rejects.toThrow('Injected approval finalization failure');
+
+    const reservation = await budgetStore.getReservationByIdempotencyKey(
+      agent.id,
+      request.idempotencyKey
+    );
+    expect(reservation?.status).toBe('RELEASED');
+    const state = await budgetStore.getBudgetState(agent.id, reservation!.windowId, '3.00');
+    expect(state.reservedCusd).toBe('0');
+    expect((await pendingApprovalStore.getByRequestId(pendingResult.requestId))?.status).toBe('PENDING');
+    vi.restoreAllMocks();
+  });
+
+  it('3a.1. Retries approval after compensation release using the same canonical request', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'approval-compensation-retry-001',
+    };
+    const pending = await paymentService.requestPayment(ownerA, request);
+    const originalTransition = pendingApprovalStore.transitionStatus.bind(pendingApprovalStore);
+    let injectedFailure = true;
+    vi.spyOn(pendingApprovalStore, 'transitionStatus').mockImplementation(async (...args) => {
+      if (injectedFailure && args[1] === 'PENDING' && args[2] === 'APPROVED') {
+        injectedFailure = false;
+        throw new Error('Injected approval finalization failure');
+      }
+      return originalTransition(...args);
+    });
+
+    await expect(
+      paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId)
+    ).rejects.toThrow('Injected approval finalization failure');
+
+    const retried = await paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId);
+    expect(retried.outcome).toBe('RESERVED');
+    expect(retried.requestId).toBe(pending.requestId);
+    expect(retried.reservation?.requestId).toBe(pending.requestId);
+    vi.restoreAllMocks();
+  });
+
+  it('3a.2. Surfaces both approval and compensation failures for reconciliation', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'approval-compensation-failure-001',
+    };
+    const pending = await paymentService.requestPayment(ownerA, request);
+    const originalTransition = pendingApprovalStore.transitionStatus.bind(pendingApprovalStore);
+    vi.spyOn(pendingApprovalStore, 'transitionStatus').mockImplementation(async (...args) => {
+      if (args[1] === 'PENDING' && args[2] === 'APPROVED') {
+        throw new Error('Injected approval finalization failure');
+      }
+      return originalTransition(...args);
+    });
+    vi.spyOn(policyEnforcementService, 'releaseReservationForApprovalRetry').mockRejectedValueOnce(
+      new Error('Injected compensation failure')
+    );
+
+    await expect(
+      paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId)
+    ).rejects.toMatchObject({
+      name: 'ApprovalFinalizationReconciliationError',
+      requestId: pending.requestId,
+    } satisfies Partial<ApprovalFinalizationReconciliationError>);
+
+    const reservation = await budgetStore.getReservationByIdempotencyKey(
+      agent.id,
+      request.idempotencyKey
+    );
+    expect(reservation?.status).toBe('RESERVED');
+    vi.restoreAllMocks();
+  });
+
+  it('3b. Does not release a reservation that became COMMITTED before finalization failure', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'approval-committed-before-failure-001',
+    };
+    const pendingResult = await paymentService.requestPayment(ownerA, request);
+
+    const originalTransition = pendingApprovalStore.transitionStatus.bind(pendingApprovalStore);
+    let injectedFailure = true;
+    vi.spyOn(pendingApprovalStore, 'transitionStatus').mockImplementation(async (...args) => {
+      if (injectedFailure && args[1] === 'PENDING' && args[2] === 'APPROVED') {
+        injectedFailure = false;
+        const reservation = await budgetStore.getReservationByIdempotencyKey(
+          agent.id,
+          request.idempotencyKey
+        );
+        await budgetStore.markSubmitted(reservation!.id, `0x${'1'.repeat(64)}`);
+        await budgetStore.commitReservation(reservation!.id);
+        throw new Error('Injected post-commit finalization failure');
+      }
+      return originalTransition(...args);
+    });
+
+    await expect(
+      paymentService.approvePaymentRequest(ownerA, agent.id, pendingResult.requestId)
+    ).rejects.toThrow('Injected post-commit finalization failure');
+
+    const reservation = await budgetStore.getReservationByIdempotencyKey(
+      agent.id,
+      request.idempotencyKey
+    );
+    expect(reservation?.status).toBe('COMMITTED');
+    const state = await budgetStore.getBudgetState(agent.id, reservation!.windowId, '3.00');
+    expect(state.spentCusd).toBe('0.4');
+    expect(state.reservedCusd).toBe('0');
+    vi.restoreAllMocks();
   });
 
   // ==========================================================================
@@ -632,6 +775,107 @@ describe('Phase 8.2: AgentPaymentService (Payment Orchestration & Approvals)', (
     expect(res2.allowedToExecute).toBe(false);
   });
 
+  it('23c. Concurrent auto-approved duplicates return one canonical request ID', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: agent.id,
+      amountCusd: '0.10',
+      recipient: recipientAllowed,
+      idempotencyKey: 'concurrent-auto-canonical-001',
+    };
+
+    const [first, second] = await Promise.all([
+      paymentService.requestPayment(ownerA, request),
+      paymentService.requestPayment(ownerA, request),
+    ]);
+
+    expect(first.requestId).toBe(second.requestId);
+    expect(first.reservation?.requestId).toBe(first.requestId);
+    expect(second.reservation?.requestId).toBe(first.requestId);
+    expect(first.reservation?.id).toBe(second.reservation?.id);
+  });
+
+  it('23c.1. Conflicting auto-approved retries preserve the original canonical operation', async () => {
+    const agent = await createTestAgent();
+    const first = await paymentService.requestPayment(ownerA, {
+      agentId: agent.id,
+      amountCusd: '0.10',
+      recipient: recipientAllowed,
+      idempotencyKey: 'auto-conflicting-retry-001',
+    });
+    const conflict = await paymentService.requestPayment(ownerA, {
+      agentId: agent.id,
+      amountCusd: '0.11',
+      recipient: recipientAllowed,
+      idempotencyKey: 'auto-conflicting-retry-001',
+    });
+
+    expect(first.outcome).toBe('RESERVED');
+    expect(conflict.outcome).toBe('IDEMPOTENCY_CONFLICT');
+    expect(conflict.requestId).toBe(first.requestId);
+    expect(conflict.reservation?.id).toBe(first.reservation?.id);
+  });
+
+  it('23d. Padded agent IDs share the same operation lock', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: ` ${agent.id} `,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'padded-agent-lock-001',
+    };
+
+    const [first, second] = await Promise.all([
+      paymentService.requestPayment(ownerA, request),
+      paymentService.requestPayment(ownerA, { ...request, agentId: agent.id }),
+    ]);
+
+    expect(first.requestId).toBe(second.requestId);
+    expect(await pendingApprovalStore.listByAgentId(agent.id, 'PENDING')).toHaveLength(1);
+  });
+
+  it('23a. Approved retries replay the reservation after the approval TTL expires', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'approved-expiry-replay-001',
+    };
+
+    const pending = await paymentService.requestPayment(ownerA, request);
+    const approved = await paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId);
+    currentTime += 86_400_001;
+
+    const replay = await paymentService.requestPayment(ownerA, request);
+    expect(replay.outcome).toBe('DUPLICATE_IN_PROGRESS');
+    expect(replay.requestId).toBe(pending.requestId);
+    expect(replay.pendingApproval?.requestId).toBe(pending.requestId);
+    expect(replay.reservation?.id).toBe(approved.reservation?.id);
+  });
+
+  it('23b. Concurrent identical approval-required requests share one canonical approval ID', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'concurrent-pending-canonical-001',
+    };
+
+    const [first, second] = await Promise.all([
+      paymentService.requestPayment(ownerA, request),
+      paymentService.requestPayment(ownerA, request),
+    ]);
+
+    expect(first.outcome).toBe('REQUIRE_USER_APPROVAL');
+    expect(second.outcome).toBe('REQUIRE_USER_APPROVAL');
+    expect(first.requestId).toBe(first.pendingApproval?.requestId);
+    expect(second.requestId).toBe(second.pendingApproval?.requestId);
+    expect(first.requestId).toBe(second.requestId);
+    expect(await pendingApprovalStore.listByAgentId(agent.id, 'PENDING')).toHaveLength(1);
+  });
+
   it('24. Duplicate approval attempts do not create duplicate successful approvals', async () => {
     const agent = await createTestAgent();
 
@@ -710,6 +954,337 @@ describe('Phase 8.2: AgentPaymentService (Payment Orchestration & Approvals)', (
     const outcomes = [resA.outcome, resB.outcome];
     expect(outcomes).toContain('RESERVED');
     expect(outcomes).toContain('BUDGET_DENIED');
+  });
+
+  it('26a. Termination first fences approval and payment reservation', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'termination-first-001',
+    };
+    const pending = await paymentService.requestPayment(ownerA, request);
+
+    await paymentService.terminateAgentAndCancelPendingApprovals(
+      ownerA,
+      agent.id,
+      'Termination fence test'
+    );
+
+    await expect(
+      paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId)
+    ).rejects.toThrow(AgentTerminatedError);
+    expect((await pendingApprovalStore.getByRequestId(pending.requestId))?.status).toBe('CANCELLED');
+    expect(await budgetStore.getReservationByIdempotencyKey(agent.id, request.idempotencyKey)).toBeNull();
+  });
+
+  it('26b. Approval first then termination releases the safe RESERVED reservation', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'approval-first-001',
+    };
+    const pending = await paymentService.requestPayment(ownerA, request);
+    const approved = await paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId);
+
+    await paymentService.terminateAgentAndCancelPendingApprovals(
+      ownerA,
+      agent.id,
+      'Termination after approval test'
+    );
+
+    expect((await pendingApprovalStore.getByRequestId(pending.requestId))?.status).toBe('CANCELLED');
+    expect(approved.reservation?.status).toBe('RESERVED');
+    const released = await budgetStore.getReservationByIdempotencyKey(agent.id, request.idempotencyKey);
+    expect(released?.status).toBe('RELEASED');
+  });
+
+  it('26b.1. Direct AgentService termination uses coordinated payment cleanup', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: agent.id,
+      amountCusd: '0.10',
+      recipient: recipientAllowed,
+      idempotencyKey: 'direct-agent-termination-cleanup-001',
+    };
+    await paymentService.requestPayment(ownerA, request);
+
+    await agentService.terminateAgent(ownerA, agent.id, 'Direct lifecycle termination');
+
+    const reservation = await budgetStore.getReservationByIdempotencyKey(
+      agent.id,
+      request.idempotencyKey
+    );
+    expect(reservation?.status).toBe('RELEASED');
+    expect((await agentService.getAgentById(ownerA, agent.id)).status).toBe('TERMINATED');
+  });
+
+  it('26c. Termination cleanup resumes after an injected failure across multiple approvals', async () => {
+    const agent = await createTestAgent();
+    const first = await paymentService.requestPayment(ownerA, {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'termination-retry-001',
+    });
+    const second = await paymentService.requestPayment(ownerA, {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'termination-retry-002',
+    });
+
+    const originalTransition = pendingApprovalStore.transitionStatus.bind(pendingApprovalStore);
+    let injectedFailure = true;
+    vi.spyOn(pendingApprovalStore, 'transitionStatus').mockImplementation(async (...args) => {
+      if (injectedFailure && args[0] === second.requestId && args[1] === 'PENDING') {
+        injectedFailure = false;
+        throw new Error('Injected cancellation failure');
+      }
+      return originalTransition(...args);
+    });
+
+    await expect(
+      paymentService.terminateAgentAndCancelPendingApprovals(
+        ownerA,
+        agent.id,
+        'Resumable termination test'
+      )
+    ).rejects.toBeInstanceOf(PendingApprovalCancellationError);
+
+    const terminatedAfterFailure = await agentService.getAgentById(ownerA, agent.id);
+    expect(terminatedAfterFailure.status).toBe('TERMINATED');
+    expect(terminatedAfterFailure.statusReason).toBe('Resumable termination test');
+    expect((await pendingApprovalStore.getByRequestId(first.requestId))?.status).toBe('CANCELLED');
+    expect((await pendingApprovalStore.getByRequestId(second.requestId))?.status).toBe('PENDING');
+
+    const updatedAt = terminatedAfterFailure.updatedAt;
+    await paymentService.terminateAgentAndCancelPendingApprovals(ownerA, agent.id);
+
+    const terminatedAfterRetry = await agentService.getAgentById(ownerA, agent.id);
+    expect(terminatedAfterRetry.status).toBe('TERMINATED');
+    expect(terminatedAfterRetry.statusReason).toBe('Resumable termination test');
+    expect(terminatedAfterRetry.updatedAt).toBe(updatedAt);
+    expect((await pendingApprovalStore.getByRequestId(first.requestId))?.status).toBe('CANCELLED');
+    expect((await pendingApprovalStore.getByRequestId(second.requestId))?.status).toBe('CANCELLED');
+    vi.restoreAllMocks();
+  });
+
+  it('26d. Termination cleanup retries approval cancellation after safe reservation release', async () => {
+    const agent = await createTestAgent();
+    const request: AgentPaymentRequest = {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'termination-approved-retry-001',
+    };
+    const pending = await paymentService.requestPayment(ownerA, request);
+    await paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId);
+
+    const originalTransition = pendingApprovalStore.transitionStatus.bind(pendingApprovalStore);
+    let injectedFailure = true;
+    vi.spyOn(pendingApprovalStore, 'transitionStatus').mockImplementation(async (...args) => {
+      if (injectedFailure && args[1] === 'APPROVED' && args[2] === 'CANCELLED') {
+        injectedFailure = false;
+        throw new Error('Injected approved cancellation failure');
+      }
+      return originalTransition(...args);
+    });
+
+    await expect(
+      paymentService.terminateAgentAndCancelPendingApprovals(ownerA, agent.id, 'Approved retry test')
+    ).rejects.toBeInstanceOf(PendingApprovalCancellationError);
+    expect((await pendingApprovalStore.getByRequestId(pending.requestId))?.status).toBe('APPROVED');
+    expect(
+      (await budgetStore.getReservationByIdempotencyKey(agent.id, request.idempotencyKey))?.status
+    ).toBe('RELEASED');
+
+    await paymentService.terminateAgentAndCancelPendingApprovals(ownerA, agent.id);
+    expect((await pendingApprovalStore.getByRequestId(pending.requestId))?.status).toBe('CANCELLED');
+    vi.restoreAllMocks();
+  });
+
+  it('26e. Termination reports an approved approval whose reservation is missing', async () => {
+    const agent = await createTestAgent();
+    const pending = await paymentService.requestPayment(ownerA, {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'termination-missing-reservation-001',
+    });
+    await paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId);
+
+    const originalLookup = policyEnforcementService.getReservationByIdempotencyKey.bind(
+      policyEnforcementService
+    );
+    vi.spyOn(policyEnforcementService, 'getReservationByIdempotencyKey').mockResolvedValueOnce(null);
+    vi.spyOn(policyEnforcementService, 'listReservationsByAgentId').mockResolvedValueOnce([]);
+
+    await expect(
+      paymentService.terminateAgentAndCancelPendingApprovals(ownerA, agent.id)
+    ).rejects.toMatchObject({
+      name: 'PendingApprovalCancellationError',
+      remainingRequestIds: [pending.requestId],
+    });
+    expect((await pendingApprovalStore.getByRequestId(pending.requestId))?.status).toBe('APPROVED');
+    vi.spyOn(policyEnforcementService, 'getReservationByIdempotencyKey').mockImplementation(
+      originalLookup
+    );
+    vi.restoreAllMocks();
+  });
+
+  it('26e.1. Missing direct lookup preserves a matching generic-list reservation', async () => {
+    const agent = await createTestAgent();
+    const pending = await paymentService.requestPayment(ownerA, {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'termination-missing-matching-list-001',
+    });
+    await paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId);
+    const reservation = await budgetStore.getReservationByIdempotencyKey(
+      agent.id,
+      'termination-missing-matching-list-001'
+    );
+
+    vi.spyOn(policyEnforcementService, 'getReservationByIdempotencyKey').mockResolvedValueOnce(null);
+    vi.spyOn(policyEnforcementService, 'listReservationsByAgentId').mockResolvedValueOnce([
+      reservation!,
+    ]);
+
+    await expect(
+      paymentService.terminateAgentAndCancelPendingApprovals(ownerA, agent.id)
+    ).rejects.toMatchObject({ name: 'PendingApprovalCancellationError' });
+    expect((await budgetStore.getReservationById(reservation!.id))?.status).toBe('RESERVED');
+    expect((await pendingApprovalStore.getByRequestId(pending.requestId))?.status).toBe('APPROVED');
+    vi.restoreAllMocks();
+  });
+
+  it('26e.2. Missing direct lookup preserves a conflicting generic-list reservation', async () => {
+    const agent = await createTestAgent();
+    const pending = await paymentService.requestPayment(ownerA, {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'termination-missing-conflicting-list-001',
+    });
+    await paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId);
+    const reservation = await budgetStore.getReservationByIdempotencyKey(
+      agent.id,
+      'termination-missing-conflicting-list-001'
+    );
+
+    vi.spyOn(policyEnforcementService, 'getReservationByIdempotencyKey').mockResolvedValueOnce(null);
+    vi.spyOn(policyEnforcementService, 'listReservationsByAgentId').mockResolvedValueOnce([
+      { ...reservation!, amountCusd: '0.41' },
+    ]);
+
+    await expect(
+      paymentService.terminateAgentAndCancelPendingApprovals(ownerA, agent.id)
+    ).rejects.toMatchObject({ name: 'PendingApprovalCancellationError' });
+    expect((await budgetStore.getReservationById(reservation!.id))?.status).toBe('RESERVED');
+    vi.restoreAllMocks();
+  });
+
+  it('26e.3. Repeated cleanup preserves an unresolved reservation correlation', async () => {
+    const agent = await createTestAgent();
+    const pending = await paymentService.requestPayment(ownerA, {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'termination-unresolved-retry-001',
+    });
+    await paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId);
+    const reservation = await budgetStore.getReservationByIdempotencyKey(
+      agent.id,
+      'termination-unresolved-retry-001'
+    );
+
+    vi.spyOn(policyEnforcementService, 'getReservationByIdempotencyKey').mockResolvedValue(null);
+    vi.spyOn(policyEnforcementService, 'listReservationsByAgentId').mockResolvedValue([
+      reservation!,
+    ]);
+
+    await expect(
+      paymentService.terminateAgentAndCancelPendingApprovals(ownerA, agent.id)
+    ).rejects.toMatchObject({ name: 'PendingApprovalCancellationError' });
+    await expect(
+      paymentService.terminateAgentAndCancelPendingApprovals(ownerA, agent.id)
+    ).rejects.toMatchObject({ name: 'PendingApprovalCancellationError' });
+
+    expect((await budgetStore.getReservationById(reservation!.id))?.status).toBe('RESERVED');
+    expect((await pendingApprovalStore.getByRequestId(pending.requestId))?.status).toBe('APPROVED');
+    vi.restoreAllMocks();
+  });
+
+  it('26e.4. Cleanup succeeds after approved reservation correlation is restored', async () => {
+    const agent = await createTestAgent();
+    const pending = await paymentService.requestPayment(ownerA, {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'termination-correlation-restored-001',
+    });
+    await paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId);
+    const reservation = await budgetStore.getReservationByIdempotencyKey(
+      agent.id,
+      'termination-correlation-restored-001'
+    );
+    const originalLookup = policyEnforcementService.getReservationByIdempotencyKey.bind(
+      policyEnforcementService
+    );
+    let correlationAvailable = false;
+    vi.spyOn(policyEnforcementService, 'getReservationByIdempotencyKey').mockImplementation(
+      async (...args) => (correlationAvailable ? originalLookup(...args) : null)
+    );
+    vi.spyOn(policyEnforcementService, 'listReservationsByAgentId').mockResolvedValue([
+      reservation!,
+    ]);
+
+    await expect(
+      paymentService.terminateAgentAndCancelPendingApprovals(ownerA, agent.id)
+    ).rejects.toMatchObject({ name: 'PendingApprovalCancellationError' });
+    expect((await budgetStore.getReservationById(reservation!.id))?.status).toBe('RESERVED');
+
+    correlationAvailable = true;
+    await paymentService.terminateAgentAndCancelPendingApprovals(ownerA, agent.id);
+    expect((await budgetStore.getReservationById(reservation!.id))?.status).toBe('RELEASED');
+    expect((await pendingApprovalStore.getByRequestId(pending.requestId))?.status).toBe('CANCELLED');
+    vi.restoreAllMocks();
+  });
+
+  it('26f. Termination does not release a mismatched approved reservation', async () => {
+    const agent = await createTestAgent();
+    const pending = await paymentService.requestPayment(ownerA, {
+      agentId: agent.id,
+      amountCusd: '0.40',
+      recipient: recipientAllowed,
+      idempotencyKey: 'termination-mismatched-reservation-001',
+    });
+    await paymentService.approvePaymentRequest(ownerA, agent.id, pending.requestId);
+    const reservation = await budgetStore.getReservationByIdempotencyKey(
+      agent.id,
+      'termination-mismatched-reservation-001'
+    );
+    const originalLookup = policyEnforcementService.getReservationByIdempotencyKey.bind(
+      policyEnforcementService
+    );
+    vi.spyOn(policyEnforcementService, 'getReservationByIdempotencyKey').mockResolvedValueOnce({
+      ...reservation!,
+      amountCusd: '0.41',
+    });
+
+    await expect(
+      paymentService.terminateAgentAndCancelPendingApprovals(ownerA, agent.id)
+    ).rejects.toBeInstanceOf(PendingApprovalCancellationError);
+    expect((await budgetStore.getReservationById(reservation!.id))?.status).toBe('RESERVED');
+    vi.spyOn(policyEnforcementService, 'getReservationByIdempotencyKey').mockImplementation(
+      originalLookup
+    );
+    vi.restoreAllMocks();
   });
 
   // ==========================================================================

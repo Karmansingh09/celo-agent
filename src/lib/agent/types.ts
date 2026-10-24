@@ -1,6 +1,10 @@
 import { randomBytes } from 'crypto';
 import { isAddress, getAddress } from 'viem';
-import { AgentSpendingPolicy, validatePolicyStructure } from '../policy/types';
+import {
+  AgentSpendingPolicy,
+  validatePolicyForStorage,
+  validatePolicyStructure,
+} from '../policy/types';
 
 /**
  * Phase 7.1: Agent Domain Model & Lifecycle Types
@@ -282,14 +286,18 @@ export function assertValidStateTransition(current: AgentStatus, next: AgentStat
  */
 export function resolveAndBindAgentPolicy(
   policyInput: CreateAgentSpendingPolicyInput,
-  resolvedAgentId: string
+  resolvedAgentId: string,
+  trustedNow: number = Date.now()
 ): BoundAgentSpendingPolicy {
   if (!policyInput || typeof policyInput !== 'object' || Array.isArray(policyInput)) {
     throw new InvalidAgentInputError('spendingPolicy must be a valid non-null object');
   }
 
   // If agentId is explicitly supplied on policy, it must match resolvedAgentId
-  if (policyInput.agentId !== undefined && policyInput.agentId.trim() !== resolvedAgentId) {
+  if (
+    policyInput.agentId !== undefined &&
+    (typeof policyInput.agentId !== 'string' || policyInput.agentId.trim() !== resolvedAgentId)
+  ) {
     throw new InvalidAgentInputError(
       `Spending policy agentId ("${policyInput.agentId}") conflicts with resolved agent ID ("${resolvedAgentId}")`
     );
@@ -301,7 +309,7 @@ export function resolveAndBindAgentPolicy(
     agentId: resolvedAgentId,
   };
 
-  const validation = validatePolicyStructure(boundPolicy);
+  const validation = validatePolicyForStorage(boundPolicy, trustedNow);
   if (!validation.valid) {
     throw new InvalidAgentInputError(`Invalid spending policy: ${validation.error}`);
   }

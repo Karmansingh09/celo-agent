@@ -17,6 +17,7 @@ import {
   PendingApprovalNotFoundError,
   PendingApprovalStateError,
   PendingApprovalExpiredError,
+  ApprovalFinalizationReconciliationError,
   isValidPaymentRequestId,
   serializePaymentResult,
 } from '@/lib/payment';
@@ -155,6 +156,24 @@ export async function POST(req: Request, context: RouteContext) {
       return NextResponse.json(
         { success: false, error: err.message },
         { status: 409, headers: AUTH_CACHE_HEADERS }
+      );
+    }
+
+    if (err instanceof ApprovalFinalizationReconciliationError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: err.message,
+          requestId: err.requestId,
+          reservationId: err.reservationId,
+          requiresReconciliation: true,
+          originalError: err.originalError instanceof Error ? err.originalError.message : String(err.originalError),
+          compensationError:
+            err.compensationError instanceof Error
+              ? err.compensationError.message
+              : String(err.compensationError),
+        },
+        { status: 500, headers: AUTH_CACHE_HEADERS }
       );
     }
 

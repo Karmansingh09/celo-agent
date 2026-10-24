@@ -1,9 +1,14 @@
 import { isAddress, getAddress } from 'viem';
 import {
+  Agent,
   AgentService,
   AgentPausedError,
   AgentTerminatedError,
 } from '../agent';
+import {
+  normalizeAgentOperationKey,
+  withAgentOperationLock,
+} from '../agent/operation-lock';
 import {
   PolicyEnforcementService,
   EnforcePaymentRequest,
@@ -20,9 +25,13 @@ import {
   PendingApprovalNotFoundError,
   PendingApprovalStateError,
   PendingApprovalExpiredError,
+  PendingApprovalCancellationError,
+  PendingApprovalCleanupFailure,
+  ApprovalFinalizationReconciliationError,
   PaymentIdempotencyConflictError,
   InvalidPaymentInputError,
   generatePaymentRequestId,
+  isValidPaymentRequestId,
 } from './types';
 import { IPendingApprovalStore } from './pending-approval-store';
 import {
@@ -34,6 +43,11 @@ import {
   ExecutionInProgressError,
 } from './execution-types';
 import { CeloPaymentExecutor } from './execution';
+
+type UnresolvedApprovalIdentity = Pick<
+  PendingApproval,
+  'requestId' | 'agentId' | 'idempotencyKey'
+>;
 
 /**
  * Phase 8.2 / 8.3: Agent Payment Orchestration Service
@@ -73,6 +87,9 @@ export class AgentPaymentService {
     paymentExecutor?: IPaymentExecutor
   ) {
     this.paymentExecutor = paymentExecutor || new CeloPaymentExecutor();
+    this.agentService.setTerminationCleanupHandler((agent, reason) =>
+      this.cancelPendingApprovalsForAgentInternal(agent.id, reason)
+    );
   }
 
   /**
@@ -89,6 +106,16 @@ export class AgentPaymentService {
    * 8. Return typed outcome.
    */
   public async requestPayment(
+    authenticatedOwnerAddress: string,
+    request: AgentPaymentRequest
+  ): Promise<PaymentOrchestrationResult> {
+    const lockAgentId = normalizeAgentOperationKey(request?.agentId);
+    return withAgentOperationLock(lockAgentId, () =>
+      this.requestPaymentInternal(authenticatedOwnerAddress, request)
+    );
+  }
+
+  private async requestPaymentInternal(
     authenticatedOwnerAddress: string,
     request: AgentPaymentRequest
   ): Promise<PaymentOrchestrationResult> {
@@ -123,9 +150,21 @@ export class AgentPaymentService {
     }
     const idempotencyKey = request.idempotencyKey.trim();
 
-    const requestId = request.requestId && request.requestId.trim().length > 0
-      ? request.requestId.trim()
-      : generatePaymentRequestId(nowMs);
+    let requestId: string;
+    if (request.requestId !== undefined) {
+      if (typeof request.requestId !== 'string') {
+        throw new InvalidPaymentInputError(`Invalid requestId format: ${String(request.requestId)}`);
+      }
+      if (request.requestId.trim() === '') {
+        requestId = generatePaymentRequestId(nowMs);
+      } else if (!isValidPaymentRequestId(request.requestId)) {
+        throw new InvalidPaymentInputError(`Invalid requestId format: ${request.requestId}`);
+      } else {
+        requestId = request.requestId.trim();
+      }
+    } else {
+      requestId = generatePaymentRequestId(nowMs);
+    }
 
     // 2. Authorize caller ownership and load Agent domain record
     const agent = await this.agentService.getAgentById(authenticatedOwnerAddress, agentId);
@@ -141,7 +180,7 @@ export class AgentPaymentService {
     // 4. Idempotency Check against Pending Approval Store
     const existingPending = await this.pendingApprovalStore.getByIdempotencyKey(agent.id, idempotencyKey);
     if (existingPending) {
-      const amountMatches = existingPending.amountCusd === rawAmountCusd;
+      const amountMatches = this.sameCusdAmount(existingPending.amountCusd, rawAmountCusd);
       const recipientMatches = existingPending.recipient.toLowerCase() === normalizedRecipient.toLowerCase();
       const policyMatches = existingPending.policyId === (request.policyId || agent.spendingPolicy.id || agent.spendingPolicy.policyId);
 
@@ -160,11 +199,14 @@ export class AgentPaymentService {
       }
 
       if (existingPending.status === 'PENDING') {
-        if (nowMs > existingPending.validUntil) {
+        if (nowMs >= existingPending.validUntil) {
           await this.pendingApprovalStore.transitionStatus(existingPending.requestId, 'PENDING', 'EXPIRED', {
             statusReason: 'Approval window lapsed',
             resolvedAt: nowMs,
           });
+          if (requestId === existingPending.requestId) {
+            requestId = generatePaymentRequestId(nowMs);
+          }
         } else {
           return {
             success: true,
@@ -180,11 +222,30 @@ export class AgentPaymentService {
           };
         }
       }
+
+      if (
+        existingPending.status !== 'PENDING' &&
+        existingPending.status !== 'APPROVED' &&
+        requestId === existingPending.requestId
+      ) {
+        requestId = generatePaymentRequestId(nowMs);
+      }
+
+      if (existingPending.status === 'APPROVED') {
+        return this.replayApprovedPayment(
+          existingPending,
+          agent.id,
+          rawAmountCusd,
+          normalizedRecipient,
+          idempotencyKey
+        );
+      }
     }
 
     // 5. Delegate to PolicyEnforcementService for policy and budget evaluation
     const enforceRequest: EnforcePaymentRequest = {
       agentId: agent.id,
+      requestId,
       amountCusd: rawAmountCusd,
       recipient: normalizedRecipient,
       idempotencyKey,
@@ -198,12 +259,13 @@ export class AgentPaymentService {
 
     // 6. Handle Enforcement Outcome
     if (enforceResult.outcome === 'RESERVED') {
+      const canonicalRequestId = enforceResult.reservation?.requestId || requestId;
       return {
         success: true,
         allowedToExecute: true,
         outcome: 'RESERVED',
         reason: enforceResult.reason,
-        requestId,
+        requestId: canonicalRequestId,
         agentId: agent.id,
         amountCusd: rawAmountCusd,
         recipient: normalizedRecipient,
@@ -235,7 +297,7 @@ export class AgentPaymentService {
         allowedToExecute: false,
         outcome: 'REQUIRE_USER_APPROVAL',
         reason: enforceResult.reason,
-        requestId,
+        requestId: createdApproval.requestId,
         agentId: agent.id,
         amountCusd: rawAmountCusd,
         recipient: normalizedRecipient,
@@ -251,7 +313,7 @@ export class AgentPaymentService {
       allowedToExecute: false,
       outcome: enforceResult.outcome,
       reason: enforceResult.reason,
-      requestId,
+      requestId: enforceResult.reservation?.requestId || requestId,
       agentId: agent.id,
       amountCusd: rawAmountCusd,
       recipient: normalizedRecipient,
@@ -259,6 +321,117 @@ export class AgentPaymentService {
       reservation: enforceResult.reservation,
       budgetState: enforceResult.budgetState,
       policyEvaluation: enforceResult.policyEvaluation,
+    };
+  }
+
+  private sameCusdAmount(left: string, right: string): boolean {
+    const leftWei = parseCusdToBaseUnits(left);
+    const rightWei = parseCusdToBaseUnits(right);
+    return leftWei !== null && rightWei !== null && leftWei === rightWei;
+  }
+
+  private reservationExpectation(
+    agentId: string,
+    idempotencyKey: string,
+    amountCusd: string,
+    recipient: string,
+    policyId?: string
+  ) {
+    return {
+      agentId,
+      idempotencyKey,
+      amountCusd,
+      recipient,
+      policyId,
+    };
+  }
+
+  /**
+   * Replays an already-approved operation without reusing its approval TTL as
+   * a second authorization. The original reservation is the source of truth.
+   */
+  private async replayApprovedPayment(
+    approval: PendingApproval,
+    agentId: string,
+    amountCusd: string,
+    recipient: string,
+    idempotencyKey: string
+  ): Promise<PaymentOrchestrationResult> {
+    const reservation = await this.policyEnforcementService.getReservationByIdempotencyKey(
+      agentId,
+      idempotencyKey
+    );
+
+    if (
+      reservation &&
+      (!this.sameCusdAmount(reservation.amountCusd, amountCusd) ||
+        reservation.recipient.trim().toLowerCase() !== recipient.trim().toLowerCase() ||
+        reservation.policyId !== approval.policyId)
+    ) {
+      return {
+        success: false,
+        allowedToExecute: false,
+        outcome: 'IDEMPOTENCY_CONFLICT',
+        reason: 'Stored reservation parameters conflict with the approved payment',
+        requestId: approval.requestId,
+        agentId,
+        amountCusd,
+        recipient,
+        idempotencyKey,
+        reservation,
+      };
+    }
+
+    if (reservation?.status === 'COMMITTED') {
+      return {
+        success: true,
+        allowedToExecute: false,
+        outcome: 'DUPLICATE_COMMITTED',
+        reason: 'Payment already completed on-chain for this idempotency key',
+        requestId: approval.requestId,
+        agentId,
+        amountCusd,
+        recipient,
+        idempotencyKey,
+        reservation,
+        pendingApproval: approval,
+      };
+    }
+
+    if (
+      reservation?.status === 'RESERVED' ||
+      reservation?.status === 'SUBMITTED' ||
+      reservation?.status === 'HELD_FOR_RECONCILIATION'
+    ) {
+      return {
+        success: false,
+        allowedToExecute: false,
+        outcome: 'DUPLICATE_IN_PROGRESS',
+        reason: 'Payment reservation currently in progress for this idempotency key',
+        requestId: approval.requestId,
+        agentId,
+        amountCusd,
+        recipient,
+        idempotencyKey,
+        reservation,
+        pendingApproval: approval,
+      };
+    }
+
+    return {
+      success: false,
+      allowedToExecute: false,
+      outcome: 'BUDGET_DENIED',
+      reason: reservation
+        ? 'The previously approved reservation is no longer active; submit a new request with a new idempotency key'
+        : 'The previously approved reservation is unavailable; submit a new request with a new idempotency key',
+      requestId: approval.requestId,
+      agentId,
+      amountCusd,
+      recipient,
+      idempotencyKey,
+      reservation: reservation || undefined,
+      pendingApproval: approval,
     };
   }
 
@@ -278,6 +451,17 @@ export class AgentPaymentService {
    * 10. Return reservation result.
    */
   public async approvePaymentRequest(
+    authenticatedOwnerAddress: string,
+    agentId: string,
+    requestId: string
+  ): Promise<PaymentOrchestrationResult> {
+    const canonicalAgentId = normalizeAgentOperationKey(agentId);
+    return withAgentOperationLock(canonicalAgentId, () =>
+      this.approvePaymentRequestInternal(authenticatedOwnerAddress, canonicalAgentId, requestId)
+    );
+  }
+
+  private async approvePaymentRequestInternal(
     authenticatedOwnerAddress: string,
     agentId: string,
     requestId: string
@@ -320,7 +504,7 @@ export class AgentPaymentService {
       }
 
       // 6. Check expiration
-      if (nowMs > pending.validUntil) {
+      if (nowMs >= pending.validUntil) {
         await this.pendingApprovalStore.transitionStatus(pending.requestId, 'PENDING', 'EXPIRED', {
           statusReason: 'Approval validity window expired',
           resolvedAt: nowMs,
@@ -343,6 +527,7 @@ export class AgentPaymentService {
       // 8. Re-evaluate policy and reserve budget
       const enforceRequest: EnforcePaymentRequest = {
         agentId: agent.id,
+        requestId: pending.requestId,
         amountCusd: pending.amountCusd,
         recipient: pending.recipient,
         idempotencyKey: pending.idempotencyKey,
@@ -373,16 +558,46 @@ export class AgentPaymentService {
         };
       }
 
-      // 9. Transition approval status PENDING -> APPROVED atomically
-      const updatedApproval = await this.pendingApprovalStore.transitionStatus(
-        pending.requestId,
-        'PENDING',
-        'APPROVED',
-        {
-          statusReason: 'Approved by authenticated owner',
-          resolvedAt: nowMs,
+      // 9. Transition approval status PENDING -> APPROVED atomically. If this
+      // finalization loses a race or an injected store failure occurs, release
+      // only the still-RESERVED compensation reservation.
+      let updatedApproval: PendingApproval;
+      try {
+        updatedApproval = await this.pendingApprovalStore.transitionStatus(
+          pending.requestId,
+          'PENDING',
+          'APPROVED',
+          {
+            statusReason: 'Approved by authenticated owner',
+            resolvedAt: nowMs,
+          }
+        );
+      } catch (err: unknown) {
+        if (enforceResult.reservation) {
+          const expected = this.reservationExpectation(
+            agent.id,
+            pending.idempotencyKey,
+            pending.amountCusd,
+            pending.recipient,
+            pending.policyId
+          );
+          try {
+            await this.policyEnforcementService.releaseReservationForApprovalRetry(
+              enforceResult.reservation.id,
+              'Approval finalization failed before approval became APPROVED',
+              expected
+            );
+          } catch (compensationError: unknown) {
+            throw new ApprovalFinalizationReconciliationError(
+              pending.requestId,
+              enforceResult.reservation.id,
+              err,
+              compensationError
+            );
+          }
         }
-      );
+        throw err;
+      }
 
       // 10. Return reservation result
       return {
@@ -410,6 +625,18 @@ export class AgentPaymentService {
    * Rejection releases no budget since pending approvals never encumber funds.
    */
   public async rejectPaymentRequest(
+    authenticatedOwnerAddress: string,
+    agentId: string,
+    requestId: string,
+    reason?: string
+  ): Promise<PendingApproval> {
+    const canonicalAgentId = normalizeAgentOperationKey(agentId);
+    return withAgentOperationLock(canonicalAgentId, () =>
+      this.rejectPaymentRequestInternal(authenticatedOwnerAddress, canonicalAgentId, requestId, reason)
+    );
+  }
+
+  private async rejectPaymentRequestInternal(
     authenticatedOwnerAddress: string,
     agentId: string,
     requestId: string,
@@ -477,6 +704,267 @@ export class AgentPaymentService {
     return this.pendingApprovalStore.listByAgentId(agent.id, status);
   }
 
+  /**
+   * Terminates an agent under the same process-local lock used by approval,
+   * payment-request, and rejection operations, then resumes any
+   * incomplete approval cleanup when called again for an already terminated agent.
+   */
+  public async terminateAgentAndCancelPendingApprovals(
+    authenticatedOwnerAddress: string,
+    agentId: string,
+    reason?: string
+  ): Promise<Agent> {
+    return this.agentService.terminateAgent(authenticatedOwnerAddress, agentId, reason);
+  }
+
+  /**
+   * Public cleanup entry point for trusted internal retries. It is safe to
+   * call repeatedly; the agent lifecycle itself is not changed here.
+   */
+  public async cancelPendingApprovalsForAgent(
+    agentId: string,
+    reason: string = 'Agent permanently terminated'
+  ): Promise<PendingApproval[]> {
+    const canonicalAgentId = normalizeAgentOperationKey(agentId);
+    return withAgentOperationLock(canonicalAgentId, () =>
+      this.cancelPendingApprovalsForAgentInternal(canonicalAgentId, reason)
+    );
+  }
+
+  private async cancelPendingApprovalsForAgentInternal(
+    agentId: string,
+    reason: string
+  ): Promise<PendingApproval[]> {
+    const approvals = await this.pendingApprovalStore.listByAgentId(agentId);
+    const cancelled: PendingApproval[] = [];
+    const failures: string[] = [];
+    const failureDetails: PendingApprovalCleanupFailure[] = [];
+    const handledReservationIds = new Set<string>();
+    const unresolvedApprovalIdentities: UnresolvedApprovalIdentity[] = [];
+
+    for (const approval of approvals) {
+      if (approval.status === 'PENDING') {
+        try {
+          const cancelledApproval = await this.pendingApprovalStore.transitionStatus(
+            approval.requestId,
+            'PENDING',
+            'CANCELLED',
+            {
+              statusReason: reason,
+              resolvedAt: this.clock(),
+            }
+          );
+          cancelled.push(cancelledApproval);
+        } catch (err: unknown) {
+          if (err instanceof PendingApprovalStateError) {
+            const current = await this.pendingApprovalStore.getByRequestId(approval.requestId);
+            if (!current || current.status !== 'PENDING') {
+              continue;
+            }
+          }
+          failures.push(approval.requestId);
+          failureDetails.push({
+            requestId: approval.requestId,
+            reason: err instanceof Error ? err.message : 'Approval cancellation failed',
+          });
+        }
+        continue;
+      }
+
+      // An approval that won the lock before termination may have a RESERVED
+      // reservation. Release only that safe state, then resolve the approval.
+      // Submitted, committed, uncertain, and missing reservations are not
+      // released by termination cleanup.
+      if (approval.status === 'APPROVED') {
+        const reservation = await this.policyEnforcementService.getReservationByIdempotencyKey(
+          agentId,
+          approval.idempotencyKey
+        );
+
+        if (!reservation) {
+          unresolvedApprovalIdentities.push({
+            requestId: approval.requestId,
+            agentId: approval.agentId,
+            idempotencyKey: approval.idempotencyKey,
+          });
+          failures.push(approval.requestId);
+          failureDetails.push({
+            requestId: approval.requestId,
+            reason: 'Approved payment reservation is missing and requires reconciliation',
+          });
+          continue;
+        }
+
+        handledReservationIds.add(reservation.id);
+
+        const expected = this.reservationExpectation(
+          approval.agentId,
+          approval.idempotencyKey,
+          approval.amountCusd,
+          approval.recipient,
+          approval.policyId
+        );
+
+        const amountMatches = this.sameCusdAmount(reservation.amountCusd, approval.amountCusd);
+        const reservationMatches =
+          reservation.agentId === approval.agentId &&
+          reservation.idempotencyKey === approval.idempotencyKey &&
+          amountMatches &&
+          reservation.recipient.trim().toLowerCase() === approval.recipient.trim().toLowerCase() &&
+          reservation.policyId === approval.policyId;
+
+        if (!reservationMatches) {
+          unresolvedApprovalIdentities.push({
+            requestId: approval.requestId,
+            agentId: approval.agentId,
+            idempotencyKey: approval.idempotencyKey,
+          });
+          failures.push(approval.requestId);
+          failureDetails.push({
+            requestId: approval.requestId,
+            reservationId: reservation.id,
+            reason: 'Approved payment reservation does not match the approval identity',
+          });
+          continue;
+        }
+
+        if (reservation.status !== 'RESERVED' && reservation.status !== 'RELEASED') {
+          // Submitted, committed, and reconciliation-held reservations retain
+          // their funds and remain visible for reconciliation. They must never
+          // be released by termination cleanup.
+          continue;
+        }
+
+        try {
+          if (reservation.status === 'RESERVED') {
+            const released = await this.policyEnforcementService.releaseReservationIfReserved(
+              reservation.id,
+              'Agent permanently terminated before payment execution',
+              expected
+            );
+            if (released.status !== 'RELEASED') {
+              failures.push(approval.requestId);
+              failureDetails.push({
+                requestId: approval.requestId,
+                reservationId: reservation.id,
+                reason: 'Reservation was not released during termination cleanup',
+              });
+              continue;
+            }
+          }
+
+          const cancelledApproval = await this.pendingApprovalStore.transitionStatus(
+            approval.requestId,
+            'APPROVED',
+            'CANCELLED',
+            {
+              statusReason: reason,
+              resolvedAt: this.clock(),
+            }
+          );
+          cancelled.push(cancelledApproval);
+        } catch (err: unknown) {
+          if (err instanceof PendingApprovalStateError) {
+            const current = await this.pendingApprovalStore.getByRequestId(approval.requestId);
+            if (!current || current.status !== 'APPROVED') {
+              continue;
+            }
+          }
+          failures.push(approval.requestId);
+          failureDetails.push({
+            requestId: approval.requestId,
+            reservationId: reservation.id,
+            reason: err instanceof Error ? err.message : 'Approved approval cleanup failed',
+          });
+        }
+      }
+    }
+
+    // Auto-approved payments have no PendingApproval record. Reconcile them
+    // directly by reservation, releasing only exact, still-RESERVED records.
+    const reservations = await this.policyEnforcementService.listReservationsByAgentId(agentId);
+    for (const reservation of reservations) {
+      if (handledReservationIds.has(reservation.id)) {
+        continue;
+      }
+
+      const unresolvedApproval = unresolvedApprovalIdentities.find(
+        (identity) =>
+          identity.agentId === reservation.agentId &&
+          (reservation.requestId === identity.requestId ||
+            reservation.idempotencyKey === identity.idempotencyKey)
+      );
+      if (unresolvedApproval) {
+        const failureDetail = failureDetails.find(
+          (detail) => detail.requestId === unresolvedApproval.requestId
+        );
+        if (failureDetail) {
+          if (!failureDetail.reservationId) {
+            failureDetail.reservationId = reservation.id;
+          }
+          failureDetail.reason = `${failureDetail.reason}; potentially associated reservation preserved for reconciliation`;
+        } else {
+          failures.push(unresolvedApproval.requestId);
+          failureDetails.push({
+            requestId: unresolvedApproval.requestId,
+            reservationId: reservation.id,
+            reason: 'Potentially associated reservation preserved because approval correlation is unresolved',
+          });
+        }
+        continue;
+      }
+
+      if (reservation.agentId !== agentId) {
+        failures.push(reservation.requestId || reservation.id);
+        failureDetails.push({
+          requestId: reservation.requestId || reservation.id,
+          reservationId: reservation.id,
+          reason: 'Reservation listing returned a reservation for a different agent',
+        });
+        continue;
+      }
+
+      if (reservation.status !== 'RESERVED') {
+        continue;
+      }
+
+      try {
+        const released = await this.policyEnforcementService.releaseReservationIfReserved(
+          reservation.id,
+          'Agent permanently terminated before payment execution',
+          this.reservationExpectation(
+            reservation.agentId,
+            reservation.idempotencyKey,
+            reservation.amountCusd,
+            reservation.recipient,
+            reservation.policyId
+          )
+        );
+        if (released.status !== 'RELEASED') {
+          failures.push(reservation.requestId || reservation.id);
+          failureDetails.push({
+            requestId: reservation.requestId || reservation.id,
+            reservationId: reservation.id,
+            reason: 'Auto-approved reservation was not released during termination cleanup',
+          });
+        }
+      } catch (err: unknown) {
+        failures.push(reservation.requestId || reservation.id);
+        failureDetails.push({
+          requestId: reservation.requestId || reservation.id,
+          reservationId: reservation.id,
+          reason: err instanceof Error ? err.message : 'Auto-approved reservation cleanup failed',
+        });
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new PendingApprovalCancellationError(agentId, failures, failureDetails);
+    }
+
+    return cancelled;
+  }
+
   // ============================================================================
   // PHASE 8.3: CONTROLLED PAYMENT EXECUTION BOUNDARY
   // ============================================================================
@@ -514,7 +1002,7 @@ export class AgentPaymentService {
       throw new InvalidPaymentInputError('Execution parameters must be a non-null object');
     }
 
-    const { agentId, reservationId, asset, executionAmount, purpose } = params;
+    const { agentId, reservationId, asset, executionAmount } = params;
 
     if (!agentId || typeof agentId !== 'string') {
       throw new InvalidPaymentInputError('Agent ID is required');
@@ -528,6 +1016,33 @@ export class AgentPaymentService {
     if (!executionAmount || typeof executionAmount !== 'string') {
       throw new InvalidPaymentInputError('Execution amount is required');
     }
+
+    // Preserve the reservation-level guard before waiting on the agent lock so
+    // duplicate callers receive ExecutionInProgressError rather than queueing
+    // behind the first call and observing its terminal reservation state.
+    if (this.inFlightExecutions.has(reservationId)) {
+      throw new ExecutionInProgressError(reservationId);
+    }
+    this.inFlightExecutions.add(reservationId);
+
+    const canonicalAgentId = normalizeAgentOperationKey(agentId);
+    try {
+      return await withAgentOperationLock(canonicalAgentId, () =>
+        this.executeReservedPaymentInternal(
+          authenticatedOwnerAddress,
+          params
+        )
+      );
+    } finally {
+      this.inFlightExecutions.delete(reservationId);
+    }
+  }
+
+  private async executeReservedPaymentInternal(
+    authenticatedOwnerAddress: string,
+    params: ExecuteReservedPaymentParams
+  ): Promise<ExecuteReservedPaymentResult> {
+    const { agentId, reservationId, asset, executionAmount, purpose } = params;
 
     // 1. Authenticate owner & Agent status
     const agent = await this.agentService.getAgentById(authenticatedOwnerAddress, agentId);
@@ -597,13 +1112,7 @@ export class AgentPaymentService {
       );
     }
 
-    // 4. In-flight Concurrency Guard
-    if (this.inFlightExecutions.has(reservationId)) {
-      throw new ExecutionInProgressError(reservationId);
-    }
-
-    this.inFlightExecutions.add(reservationId);
-
+    let broadcastedTxHash: string | undefined;
     try {
       // 5. Invoke IPaymentExecutor Boundary
       const execResult = await this.paymentExecutor.execute({
@@ -618,6 +1127,7 @@ export class AgentPaymentService {
 
       // 6. Handle Execution Outcomes
       if (execResult.status === 'SUBMITTED' && execResult.txHash) {
+        broadcastedTxHash = execResult.txHash;
         // Broadcast succeeded: transition reservation to SUBMITTED
         const updatedReservation = await this.policyEnforcementService.markSubmitted(
           reservationId,
@@ -671,14 +1181,17 @@ export class AgentPaymentService {
         errMsg.toLowerCase().includes('network') ||
         errMsg.toLowerCase().includes('timed out');
 
-      if (isUncertain) {
+      if (isUncertain || broadcastedTxHash) {
         const updatedReservation = await this.policyEnforcementService.holdForReconciliation(
           reservationId,
-          errMsg
+          broadcastedTxHash
+            ? `Broadcast succeeded but reservation submission finalization failed: ${errMsg}`
+            : errMsg
         );
         return {
           success: false,
           status: 'UNCERTAIN',
+          txHash: broadcastedTxHash,
           reservation: updatedReservation,
           error: errMsg,
         };
@@ -694,8 +1207,6 @@ export class AgentPaymentService {
           error: errMsg,
         };
       }
-    } finally {
-      this.inFlightExecutions.delete(reservationId);
     }
   }
 
@@ -704,6 +1215,23 @@ export class AgentPaymentService {
    * Permanently transitions the reservation to COMMITTED state and moves funds into spentWei.
    */
   public async confirmPaymentSettlement(
+    authenticatedOwnerAddress: string,
+    agentId: string,
+    reservationId: string,
+    confirmation: TrustedSettlementConfirmation
+  ): Promise<BudgetReservation> {
+    const canonicalAgentId = normalizeAgentOperationKey(agentId);
+    return withAgentOperationLock(canonicalAgentId, () =>
+      this.confirmPaymentSettlementInternal(
+        authenticatedOwnerAddress,
+        canonicalAgentId,
+        reservationId,
+        confirmation
+      )
+    );
+  }
+
+  private async confirmPaymentSettlementInternal(
     authenticatedOwnerAddress: string,
     agentId: string,
     reservationId: string,
@@ -736,6 +1264,23 @@ export class AgentPaymentService {
     reservationId: string,
     reason: string
   ): Promise<BudgetReservation> {
+    const canonicalAgentId = normalizeAgentOperationKey(agentId);
+    return withAgentOperationLock(canonicalAgentId, () =>
+      this.holdPaymentForReconciliationInternal(
+        authenticatedOwnerAddress,
+        canonicalAgentId,
+        reservationId,
+        reason
+      )
+    );
+  }
+
+  private async holdPaymentForReconciliationInternal(
+    authenticatedOwnerAddress: string,
+    agentId: string,
+    reservationId: string,
+    reason: string
+  ): Promise<BudgetReservation> {
     const agent = await this.agentService.getAgentById(authenticatedOwnerAddress, agentId);
 
     const reservation = await this.policyEnforcementService.getReservationById(reservationId);
@@ -753,4 +1298,3 @@ export class AgentPaymentService {
     return this.policyEnforcementService.holdForReconciliation(reservationId, reason);
   }
 }
-

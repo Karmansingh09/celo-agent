@@ -7,6 +7,7 @@ import { POST as createPaymentRoute } from '../src/app/api/agents/[id]/payments/
 import { GET as listApprovalsRoute } from '../src/app/api/agents/[id]/approvals/route';
 import { POST as approveRoute } from '../src/app/api/agents/[id]/approvals/[requestId]/approve/route';
 import { POST as rejectRoute } from '../src/app/api/agents/[id]/approvals/[requestId]/reject/route';
+import { POST as terminateAgentRoute } from '../src/app/api/agents/[id]/terminate/route';
 
 describe('Phase 8.4: Controlled Payment & Approval API Layer', () => {
   const ownerA = '0x1111111111111111111111111111111111111111';
@@ -723,6 +724,116 @@ describe('Phase 8.4: Controlled Payment & Approval API Layer', () => {
       expect(jsonReject.data.statusReason).toBe('Too expensive');
     });
 
+    it('26a. Reusing a rejected approval idempotency key creates one new pending approval', async () => {
+      const payload = {
+        amountCusd: '2.00',
+        recipient: validRecipient,
+        idempotencyKey: 'retry-after-reject-1',
+      };
+
+      const first = await createPaymentRoute(
+        new Request(`http://localhost:3000/api/agents/${agentAId}/payments`, {
+          method: 'POST',
+          headers: { cookie: cookieA, origin: expectedOrigin, 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        }),
+        { params: { id: agentAId } }
+      );
+      const firstJson = await first.json();
+      const firstRequestId = firstJson.data.pendingApproval.requestId;
+
+      await rejectRoute(
+        new Request(
+          `http://localhost:3000/api/agents/${agentAId}/approvals/${firstRequestId}/reject`,
+          {
+            method: 'POST',
+            headers: { cookie: cookieA, origin: expectedOrigin },
+          }
+        ),
+        { params: { id: agentAId, requestId: firstRequestId } }
+      );
+
+      const retry = await createPaymentRoute(
+        new Request(`http://localhost:3000/api/agents/${agentAId}/payments`, {
+          method: 'POST',
+          headers: { cookie: cookieA, origin: expectedOrigin, 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        }),
+        { params: { id: agentAId } }
+      );
+      const retryJson = await retry.json();
+
+      expect(retry.status).toBe(202);
+      expect(retryJson.data.outcome).toBe('REQUIRE_USER_APPROVAL');
+      expect(retryJson.data.pendingApproval.status).toBe('PENDING');
+      expect(retryJson.data.pendingApproval.requestId).not.toBe(firstRequestId);
+      expect(await getPendingApprovalStore().listByAgentId(agentAId, 'PENDING')).toHaveLength(1);
+
+      const retryRequestId = retryJson.data.pendingApproval.requestId;
+      const approved = await approveRoute(
+        new Request(`http://localhost:3000/api/agents/${agentAId}/approvals/${retryRequestId}/approve`, {
+          method: 'POST',
+          headers: { cookie: cookieA, origin: expectedOrigin },
+        }),
+        { params: { id: agentAId, requestId: retryRequestId } }
+      );
+      const approvedJson = await approved.json();
+      expect(approvedJson.data.outcome).toBe('RESERVED');
+
+      const duplicate = await createPaymentRoute(
+        new Request(`http://localhost:3000/api/agents/${agentAId}/payments`, {
+          method: 'POST',
+          headers: { cookie: cookieA, origin: expectedOrigin, 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        }),
+        { params: { id: agentAId } }
+      );
+      const duplicateJson = await duplicate.json();
+      expect(duplicateJson.data.outcome).toBe('DUPLICATE_IN_PROGRESS');
+      expect(duplicateJson.data.reservation.id).toBe(approvedJson.data.reservation.id);
+    });
+
+    it('26b. Reusing an expired approval idempotency key creates one new pending approval', async () => {
+      const payload = {
+        amountCusd: '2.00',
+        recipient: validRecipient,
+        idempotencyKey: 'retry-after-expiry-1',
+      };
+
+      const first = await createPaymentRoute(
+        new Request(`http://localhost:3000/api/agents/${agentAId}/payments`, {
+          method: 'POST',
+          headers: { cookie: cookieA, origin: expectedOrigin, 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        }),
+        { params: { id: agentAId } }
+      );
+      const firstJson = await first.json();
+      const firstRequestId = firstJson.data.pendingApproval.requestId;
+
+      await getPendingApprovalStore().transitionStatus(
+        firstRequestId,
+        'PENDING',
+        'EXPIRED',
+        { statusReason: 'Test expiry', resolvedAt: Date.now() }
+      );
+
+      const retry = await createPaymentRoute(
+        new Request(`http://localhost:3000/api/agents/${agentAId}/payments`, {
+          method: 'POST',
+          headers: { cookie: cookieA, origin: expectedOrigin, 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        }),
+        { params: { id: agentAId } }
+      );
+      const retryJson = await retry.json();
+
+      expect(retry.status).toBe(202);
+      expect(retryJson.data.pendingApproval.status).toBe('PENDING');
+      expect(retryJson.data.pendingApproval.requestId).not.toBe(firstRequestId);
+      expect(await getPendingApprovalStore().listByAgentId(agentAId, 'PENDING')).toHaveLength(1);
+    });
+
     it('27. Expired approval cannot be approved (returns 409)', async () => {
       const store = getPendingApprovalStore();
       const expiredAppr = await store.create({
@@ -902,6 +1013,61 @@ describe('Phase 8.4: Controlled Payment & Approval API Layer', () => {
       });
       const resApprove = await approveRoute(reqApprove, { params: { id: agentAId, requestId } });
       expect(resApprove.status).toBe(409);
+    });
+
+    it('32a. Termination cancels outstanding pending approvals', async () => {
+      const reqCreate = new Request(`http://localhost:3000/api/agents/${agentAId}/payments`, {
+        method: 'POST',
+        headers: {
+          cookie: cookieA,
+          origin: expectedOrigin,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          amountCusd: '2.00',
+          recipient: validRecipient,
+          idempotencyKey: 'terminate-cancel-1',
+        }),
+      });
+      const resCreate = await createPaymentRoute(reqCreate, { params: { id: agentAId } });
+      const jsonCreate = await resCreate.json();
+      const requestId = jsonCreate.data.pendingApproval.requestId;
+
+      const resTerminate = await terminateAgentRoute(
+        new Request(`http://localhost:3000/api/agents/${agentAId}/terminate`, {
+          method: 'POST',
+          headers: {
+            cookie: cookieA,
+            origin: expectedOrigin,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({ reason: 'Retired for safety test' }),
+        }),
+        { params: { id: agentAId } }
+      );
+      expect(resTerminate.status).toBe(200);
+
+      const cancelled = await getPendingApprovalStore().getByRequestId(requestId);
+      expect(cancelled?.status).toBe('CANCELLED');
+      expect(cancelled?.statusReason).toBe('Retired for safety test');
+
+      const approveAfterTermination = await approveRoute(
+        new Request(`http://localhost:3000/api/agents/${agentAId}/approvals/${requestId}/approve`, {
+          method: 'POST',
+          headers: { cookie: cookieA, origin: expectedOrigin },
+        }),
+        { params: { id: agentAId, requestId } }
+      );
+      expect(approveAfterTermination.status).toBe(409);
+
+      const cancelledList = await listApprovalsRoute(
+        new Request(`http://localhost:3000/api/agents/${agentAId}/approvals?status=CANCELLED`, {
+          headers: { cookie: cookieA },
+        }),
+        { params: { id: agentAId } }
+      );
+      const cancelledJson = await cancelledList.json();
+      expect(cancelledJson.count).toBe(1);
     });
   });
 

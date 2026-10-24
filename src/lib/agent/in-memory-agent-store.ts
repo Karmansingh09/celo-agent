@@ -9,7 +9,7 @@ import {
   normalizeOwnerAddress,
   validateAgentMetadata,
 } from './types';
-import { validatePolicyStructure } from '../policy/types';
+import { validatePolicyForStorage } from '../policy/types';
 import { IAgentStore, ListAgentsFilter, UpdateAgentStorePatch } from './store';
 
 /**
@@ -107,7 +107,7 @@ export class InMemoryAgentStore implements IAgentStore {
       throw new InvalidAgentInputError('Agent must have a valid spending policy');
     }
 
-    const policyValidation = validatePolicyStructure(agent.spendingPolicy);
+    const policyValidation = validatePolicyForStorage(agent.spendingPolicy, this.clock());
     if (!policyValidation.valid) {
       throw new InvalidAgentInputError(`Invalid spending policy: ${policyValidation.error}`);
     }
@@ -220,12 +220,13 @@ export class InMemoryAgentStore implements IAgentStore {
       validateAgentMetadata(patch.metadata);
     }
 
+    const nowMs = this.clock();
     let updatedPolicy = existing.spendingPolicy;
     if (patch.spendingPolicy !== undefined) {
       if (!patch.spendingPolicy || typeof patch.spendingPolicy !== 'object' || Array.isArray(patch.spendingPolicy)) {
         throw new InvalidAgentInputError('spendingPolicy must be a valid non-null object');
       }
-      const policyValidation = validatePolicyStructure(patch.spendingPolicy);
+      const policyValidation = validatePolicyForStorage(patch.spendingPolicy, nowMs);
       if (!policyValidation.valid) {
         throw new InvalidAgentInputError(`Invalid spending policy: ${policyValidation.error}`);
       }
@@ -264,8 +265,6 @@ export class InMemoryAgentStore implements IAgentStore {
       // Status did not change, but statusReason was updated
       nextStatusReason = patch.statusReason;
     }
-
-    const nowMs = this.clock();
 
     // Prepare complete updated record before modifying map (all-or-nothing atomicity)
     const updatedAgent: Agent = {

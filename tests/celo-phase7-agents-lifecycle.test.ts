@@ -291,7 +291,7 @@ describe('Phase 7.5.4: Agent Management Lifecycle Routes (pause, resume, termina
       expect(json.data.status).toBe('TERMINATED');
     });
 
-    it('returns 409 Conflict when attempting to terminate an already TERMINATED agent', async () => {
+    it('retries cleanup successfully when terminating an already TERMINATED agent', async () => {
       // First terminate
       await getAgentService().terminateAgent(ownerA, agentAId);
 
@@ -301,9 +301,10 @@ describe('Phase 7.5.4: Agent Management Lifecycle Routes (pause, resume, termina
       });
 
       const res = await terminateRoute(req, { params: { id: agentAId } });
-      expect(res.status).toBe(409);
+      expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json.error).toContain('TERMINATED');
+      expect(json.success).toBe(true);
+      expect(json.data.status).toBe('TERMINATED');
     });
   });
 

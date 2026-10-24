@@ -6,7 +6,6 @@ import {
   AUTH_CACHE_HEADERS,
 } from '@/lib/auth';
 import {
-  getAgentService,
   AgentNotFoundError,
   UnauthorizedAgentError,
   InvalidAgentInputError,
@@ -14,6 +13,10 @@ import {
   AgentTerminatedError,
   isValidAgentId,
 } from '@/lib/agent';
+import {
+  getAgentPaymentService,
+  PendingApprovalCancellationError,
+} from '@/lib/payment';
 
 interface RouteContext {
   params: {
@@ -63,7 +66,7 @@ async function parseOptionalLifecycleReason(
 
 export async function POST(req: Request, context: RouteContext) {
   const authService = getAuthService();
-  const agentService = getAgentService();
+  const paymentService = getAgentPaymentService();
 
   const { id } = await Promise.resolve(context.params);
 
@@ -91,8 +94,8 @@ export async function POST(req: Request, context: RouteContext) {
       );
     }
 
-    // 5. Delegate terminate operation to AgentService
-    const updatedAgent = await agentService.terminateAgent(
+    // 5. Termination and approval cleanup share the agent operation lock.
+    const updatedAgent = await paymentService.terminateAgentAndCancelPendingApprovals(
       authenticatedOwner,
       id,
       bodyResult.reason
@@ -136,6 +139,18 @@ export async function POST(req: Request, context: RouteContext) {
       return NextResponse.json(
         { success: false, error: err.message },
         { status: 409, headers: AUTH_CACHE_HEADERS }
+      );
+    }
+
+    if (err instanceof PendingApprovalCancellationError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: err.message,
+          remainingRequestIds: err.remainingRequestIds,
+          failures: err.failures,
+        },
+        { status: 500, headers: AUTH_CACHE_HEADERS }
       );
     }
 

@@ -186,6 +186,52 @@ export class InvalidPaymentInputError extends Error {
   }
 }
 
+/**
+ * Indicates that an agent was terminated but one or more approval cleanup
+ * operations failed. The agent remains terminated and the operation is safe
+ * to retry in the same process.
+ */
+export class PendingApprovalCancellationError extends Error {
+  public readonly name = 'PendingApprovalCancellationError';
+
+  constructor(
+    public readonly agentId: string,
+    public readonly remainingRequestIds: string[],
+    public readonly failures: PendingApprovalCleanupFailure[] = remainingRequestIds.map(
+      (requestId) => ({ requestId, reason: 'Approval cleanup failed' })
+    ),
+    message?: string
+  ) {
+    super(
+      message ||
+        `Pending approval cleanup is incomplete for terminated agent ${agentId}; retry termination cleanup`
+    );
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export interface PendingApprovalCleanupFailure {
+  requestId: string;
+  reservationId?: string;
+  reason: string;
+}
+
+export class ApprovalFinalizationReconciliationError extends Error {
+  public readonly name = 'ApprovalFinalizationReconciliationError';
+
+  constructor(
+    public readonly requestId: string,
+    public readonly reservationId: string,
+    public readonly originalError: unknown,
+    public readonly compensationError: unknown
+  ) {
+    super(
+      `Approval finalization failed and reservation compensation also failed for request ${requestId}; reservation ${reservationId} requires reconciliation`
+    );
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 // ============================================================================
 // IDENTIFIER HELPERS
 // ============================================================================

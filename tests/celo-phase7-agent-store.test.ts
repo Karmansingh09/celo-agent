@@ -136,6 +136,14 @@ describe('Phase 7.2: InMemoryAgentStore', () => {
       agent.spendingPolicy.agentId = 'agent_different_99';
       await expect(store.createAgent(agent)).rejects.toThrow('does not match agent ID');
     });
+
+    it('should use the repository clock instead of caller-supplied updatedAt for policy expiry', async () => {
+      currentTime = baseTime;
+      const agent = createTestAgent('agent_trusted_clock_01', validOwner1, baseTime - 10_000);
+      agent.spendingPolicy.validUntil = baseTime - 1;
+
+      await expect(store.createAgent(agent)).rejects.toThrow('validUntil must be in the future');
+    });
   });
 
   describe('4. Updating Permitted Agent Fields', () => {
