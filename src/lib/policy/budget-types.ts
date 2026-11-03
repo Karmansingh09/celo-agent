@@ -237,7 +237,11 @@ export interface IBudgetStore {
    * Preserves amountWei in reservedWei to prevent overspending until reconciliation confirms status.
    * Threshold: RECONCILIATION_THRESHOLD_MS (5 minutes). Triggers investigation, never auto-release.
    */
-  holdForReconciliation(reservationId: string, reason: string): Promise<BudgetReservation>;
+  holdForReconciliation(
+    reservationId: string,
+    reason: string,
+    txHash?: string
+  ): Promise<BudgetReservation>;
 
   /**
    * Looks up an existing reservation by its unique reservation ID.

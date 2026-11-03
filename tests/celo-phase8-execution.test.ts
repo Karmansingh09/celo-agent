@@ -555,6 +555,7 @@ describe('Phase 8.3: Controlled Payment Execution Boundary', () => {
       executeMock.mockResolvedValueOnce({
         success: false,
         status: 'UNCERTAIN',
+        txHash: TX_HASH_VALID,
         error: 'Network timeout waiting for RPC broadcast confirmation',
       });
 
@@ -573,6 +574,7 @@ describe('Phase 8.3: Controlled Payment Execution Boundary', () => {
       expect(result.success).toBe(false);
       expect(result.status).toBe('UNCERTAIN');
       expect(result.reservation.status).toBe('HELD_FOR_RECONCILIATION');
+      expect(result.reservation.txHash).toBe(TX_HASH_VALID);
 
       // CRITICAL GUARANTEE: funds remain encumbered in reservedWei
       const budgetState = await budgetStore.getBudgetState(agent.id, reservation.windowId, '10.00');

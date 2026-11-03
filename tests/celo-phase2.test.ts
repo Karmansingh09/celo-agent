@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { celoSepoliaChain, celoMainnetChain, getActiveCeloChain } from '../src/lib/celo/config';
+import {
+  celoSepoliaChain,
+  celoMainnetChain,
+  getActiveCeloChain,
+  resolveCeloNetwork,
+} from '../src/lib/celo/config';
 import { isValidPrivateKey, getAgentAccount, getAgentAddress, isAgentConfigured } from '../src/lib/celo/account';
 import { getAgentBalance } from '../src/lib/celo/balance';
 import { isValidTxHash, getTransaction, waitForTransaction } from '../src/lib/celo/transactions';
@@ -21,6 +26,11 @@ describe('Phase 2: Celo Blockchain Network Configuration', () => {
     delete process.env.CELO_NETWORK;
     const chain = getActiveCeloChain();
     expect(chain.id).toBe(11142220);
+  });
+
+  it('should reject unsupported network values instead of falling back', () => {
+    expect(() => resolveCeloNetwork('alfajores')).toThrow('Unsupported Celo network');
+    expect(resolveCeloNetwork('mainnet')).toBe('mainnet');
   });
 });
 

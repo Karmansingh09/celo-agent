@@ -213,4 +213,43 @@ describe('P0-A: settlement receipt and reservation security', () => {
     expect(verifier.verify).not.toHaveBeenCalled();
     expect((await store.getReservationById(result.reservation!.id))?.status).toBe('RESERVED');
   });
+
+  it('rejects a different hash when confirming an already committed reservation', async () => {
+    const store = new InMemoryBudgetStore();
+    const verifier: SettlementReceiptVerifier = {
+      verify: vi.fn(async (request) => ({
+        txHash: request.txHash as `0x${string}`,
+        chainId: 11142220,
+        blockNumber: 1n,
+        sender,
+        recipient,
+        tokenAddress: token,
+        amountWei: request.amountWei,
+      })),
+    };
+    const service = new PolicyEnforcementService(store, () => Date.now(), verifier);
+    const request: EnforcePaymentRequest = {
+      agentId: 'agent-p0-committed-hash',
+      amountCusd: '0.10',
+      recipient,
+      idempotencyKey: 'p0-committed-hash',
+    };
+    const policy = {
+      agentId: request.agentId,
+      maxPerTransaction: '1.00',
+      maxPerDay: '1.00',
+      allowedRecipients: [recipient],
+      autoApproveThreshold: '1.00',
+      validUntil: Date.now() + 60_000,
+    };
+    const result = await service.enforcePayment(policy, request);
+    await service.markSubmitted(result.reservation!.id, txHash);
+    await service.confirmSettlement(result.reservation!.id, { txHash });
+
+    await expect(
+      service.confirmSettlement(result.reservation!.id, {
+        txHash: ('0x' + 'b'.repeat(64)) as `0x${string}`,
+      })
+    ).rejects.toThrow('does not match the committed reservation');
+  });
 });

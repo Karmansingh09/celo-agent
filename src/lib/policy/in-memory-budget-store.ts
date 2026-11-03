@@ -359,9 +359,11 @@ export class InMemoryBudgetStore implements IBudgetStore {
       throw new Error(`Reservation not found: ${reservationId}`);
     }
 
+    const normalizedTxHash = typeof txHash === 'string' ? txHash.trim() : '';
+
     // Idempotent retry is allowed only for the same transaction hash.
     if (res.status === 'SUBMITTED') {
-      if (res.txHash?.toLowerCase() !== txHash.toLowerCase()) {
+      if (res.txHash?.toLowerCase() !== normalizedTxHash.toLowerCase()) {
         throw new Error(
           `Reservation ${reservationId} is already submitted with a different transaction hash`
         );
@@ -375,8 +377,12 @@ export class InMemoryBudgetStore implements IBudgetStore {
       );
     }
 
+    if (!/^0x[a-fA-F0-9]{64}$/.test(normalizedTxHash)) {
+      throw new Error('Transaction hash must be a valid 32-byte 0x-prefixed hex string');
+    }
+
     res.status = 'SUBMITTED';
-    res.txHash = txHash;
+    res.txHash = normalizedTxHash;
     res.updatedAt = Date.now();
 
     return { ...res };
@@ -535,7 +541,8 @@ export class InMemoryBudgetStore implements IBudgetStore {
    */
   public async holdForReconciliation(
     reservationId: string,
-    reason: string
+    reason: string,
+    txHash?: string
   ): Promise<BudgetReservation> {
     const res = this.reservations.get(reservationId);
     if (!res) {
@@ -543,6 +550,21 @@ export class InMemoryBudgetStore implements IBudgetStore {
     }
 
     if (res.status === 'HELD_FOR_RECONCILIATION') {
+      if (txHash !== undefined) {
+        const normalizedTxHash = txHash.trim();
+        if (!/^0x[a-fA-F0-9]{64}$/.test(normalizedTxHash)) {
+          throw new Error('Transaction hash must be a valid 32-byte 0x-prefixed hex string');
+        }
+        if (res.txHash && res.txHash.toLowerCase() !== normalizedTxHash.toLowerCase()) {
+          throw new Error(
+            `Reservation ${reservationId} is already held with a different transaction hash`
+          );
+        }
+        if (!res.txHash) {
+          res.txHash = normalizedTxHash;
+          res.updatedAt = Date.now();
+        }
+      }
       return { ...res };
     }
 
@@ -552,8 +574,15 @@ export class InMemoryBudgetStore implements IBudgetStore {
       );
     }
 
+    if (txHash !== undefined && !/^0x[a-fA-F0-9]{64}$/.test(txHash.trim())) {
+      throw new Error('Transaction hash must be a valid 32-byte 0x-prefixed hex string');
+    }
+
     // Status changes to HELD_FOR_RECONCILIATION; amountWei remains in reservedWei
     res.status = 'HELD_FOR_RECONCILIATION';
+    if (txHash !== undefined) {
+      res.txHash = txHash.trim();
+    }
     res.failureReason = reason;
     res.updatedAt = Date.now();
 

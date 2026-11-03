@@ -1176,7 +1176,8 @@ export class AgentPaymentService {
         // Uncertain outcome (e.g., timeout): hold for reconciliation to keep funds encumbered
         const updatedReservation = await this.policyEnforcementService.holdForReconciliation(
           reservationId,
-          execResult.error || 'Execution status uncertain / network timeout'
+          execResult.error || 'Execution status uncertain / network timeout',
+          execResult.txHash
         );
 
         return {
@@ -1217,7 +1218,8 @@ export class AgentPaymentService {
           reservationId,
           broadcastedTxHash
             ? `Broadcast succeeded but reservation submission finalization failed: ${errMsg}`
-            : errMsg
+            : errMsg,
+          broadcastedTxHash
         );
         return {
           success: false,

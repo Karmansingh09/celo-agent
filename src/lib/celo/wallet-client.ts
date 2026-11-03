@@ -1,6 +1,6 @@
 import 'server-only';
 import { createWalletClient, http, WalletClient } from 'viem';
-import { getActiveCeloChain, celoSepoliaChain, celoMainnetChain } from './config';
+import { getCeloChain } from './config';
 import { getAgentAccount } from './account';
 
 /**
@@ -15,11 +15,7 @@ export function getAgentWalletClient(network?: string): WalletClient | null {
     return null;
   }
 
-  const chain = network === 'mainnet'
-    ? celoMainnetChain
-    : network === 'sepolia'
-    ? celoSepoliaChain
-    : getActiveCeloChain();
+  const chain = getCeloChain(network);
 
   return createWalletClient({
     account,

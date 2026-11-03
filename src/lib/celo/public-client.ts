@@ -1,5 +1,5 @@
 import { createPublicClient, http, PublicClient } from 'viem';
-import { getActiveCeloChain, celoSepoliaChain, celoMainnetChain } from './config';
+import { getCeloChain } from './config';
 
 /**
  * Creates a viem PublicClient for read-only Celo blockchain operations.
@@ -8,11 +8,7 @@ import { getActiveCeloChain, celoSepoliaChain, celoMainnetChain } from './config
  * @returns PublicClient instance
  */
 export function getPublicClient(network?: string): PublicClient {
-  const chain = network === 'mainnet'
-    ? celoMainnetChain
-    : network === 'sepolia'
-    ? celoSepoliaChain
-    : getActiveCeloChain();
+  const chain = getCeloChain(network);
 
   return createPublicClient({
     chain,

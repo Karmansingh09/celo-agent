@@ -1,6 +1,8 @@
 import { defineChain, getAddress, isAddress } from 'viem';
 import { celo, celoSepolia } from 'viem/chains';
 
+export type CeloNetwork = 'sepolia' | 'mainnet';
+
 /**
  * Explicit Celo Sepolia Testnet Chain definition.
  * Chain ID: 11142220
@@ -37,17 +39,41 @@ export const celoSepoliaChain = defineChain({
  * Chain ID: 42220
  * RPC: https://forno.celo.org
  */
-export const celoMainnetChain = celo;
+export const celoMainnetChain = defineChain({
+  ...celo,
+  rpcUrls: {
+    ...celo.rpcUrls,
+    default: {
+      ...celo.rpcUrls.default,
+      http: [process.env.CELO_MAINNET_RPC_URL || 'https://forno.celo.org'],
+    },
+    public: {
+      http: [process.env.CELO_MAINNET_RPC_URL || 'https://forno.celo.org'],
+    },
+  },
+});
+
+/**
+ * Resolves a supported Celo network and rejects unknown values instead of
+ * silently falling back to a different chain.
+ */
+export function resolveCeloNetwork(network?: string): CeloNetwork {
+  const candidate = (network?.trim() || process.env.CELO_NETWORK || 'sepolia').trim();
+  if (candidate !== 'sepolia' && candidate !== 'mainnet') {
+    throw new Error(`Unsupported Celo network: ${candidate}`);
+  }
+  return candidate;
+}
+
+export function getCeloChain(network?: string) {
+  return resolveCeloNetwork(network) === 'mainnet' ? celoMainnetChain : celoSepoliaChain;
+}
 
 /**
  * Helper to retrieve current active chain configuration based on environment variable.
  */
 export function getActiveCeloChain() {
-  const network = process.env.CELO_NETWORK || 'sepolia';
-  if (network === 'mainnet') {
-    return celoMainnetChain;
-  }
-  return celoSepoliaChain;
+  return getCeloChain();
 }
 
 export const CURRENT_CHAIN = getActiveCeloChain();
@@ -60,11 +86,7 @@ export const CURRENT_CHAIN = getActiveCeloChain();
  * @returns Explorer URL string
  */
 export function getExplorerTxUrl(txHash: string, network?: string): string {
-  const chain = network === 'mainnet'
-    ? celoMainnetChain
-    : network === 'sepolia'
-    ? celoSepoliaChain
-    : getActiveCeloChain();
+  const chain = getCeloChain(network);
 
   const baseUrl = chain.blockExplorers?.default?.url || 'https://celo-sepolia.blockscout.com';
   return `${baseUrl}/tx/${txHash}`;
@@ -91,7 +113,7 @@ export function getMaxPaymentLimit(): string {
  * explicitly configured. No token address is guessed here.
  */
 export function getCusdTokenAddress(network?: string): `0x${string}` {
-  const resolvedNetwork = network === 'mainnet' ? 'mainnet' : 'sepolia';
+  const resolvedNetwork = resolveCeloNetwork(network);
   const envName = resolvedNetwork === 'mainnet'
     ? 'CELO_MAINNET_CUSD_ADDRESS'
     : 'CELO_SEPOLIA_CUSD_ADDRESS';

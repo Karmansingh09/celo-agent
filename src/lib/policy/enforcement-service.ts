@@ -528,6 +528,9 @@ export class PolicyEnforcementService {
     }
 
     if (reservation.status === 'COMMITTED') {
+      if (!reservation.txHash || reservation.txHash.toLowerCase() !== confirmation.txHash.trim().toLowerCase()) {
+        throw new Error('Settlement transaction hash does not match the committed reservation');
+      }
       return reservation;
     }
 
@@ -609,9 +612,10 @@ export class PolicyEnforcementService {
    */
   public async holdForReconciliation(
     reservationId: string,
-    reason: string
+    reason: string,
+    txHash?: string
   ): Promise<BudgetReservation> {
-    return this.budgetStore.holdForReconciliation(reservationId, reason);
+    return this.budgetStore.holdForReconciliation(reservationId, reason, txHash);
   }
 
   /**

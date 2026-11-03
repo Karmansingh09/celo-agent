@@ -229,9 +229,9 @@ describe('Phase 6.2: InMemoryBudgetStore', () => {
     const resId = reservation!.id;
 
     // 2. Submit
-    const submitted = await store.markSubmitted(resId, '0xabcdef123456');
+    const submitted = await store.markSubmitted(resId, '0x' + 'a'.repeat(64));
     expect(submitted.status).toBe('SUBMITTED');
-    expect(submitted.txHash).toBe('0xabcdef123456');
+    expect(submitted.txHash).toBe('0x' + 'a'.repeat(64));
 
     let state = await store.getBudgetState(agentA, '2026-10-03', dailyLimit);
     expect(state.reservedCusd).toBe('0.1');
@@ -251,6 +251,22 @@ describe('Phase 6.2: InMemoryBudgetStore', () => {
     const retry = await store.acquireReservation(request, dailyLimit);
     expect(retry.success).toBe(true);
     expect(retry.outcome).toBe('DUPLICATE_COMMITTED');
+  });
+
+  it('7a. rejects malformed transaction hashes before submission', async () => {
+    const request: ReservationRequest = {
+      agentId: agentA,
+      amountCusd: '0.10',
+      recipient: recipientA,
+      idempotencyKey: 'invalid-submission-hash',
+      timestamp: baseTime,
+    };
+    const { reservation } = await store.acquireReservation(request, dailyLimit);
+
+    await expect(store.markSubmitted(reservation!.id, '0xnot-a-hash')).rejects.toThrow(
+      'valid 32-byte 0x-prefixed hex string'
+    );
+    expect((await store.getReservationById(reservation!.id))?.status).toBe('RESERVED');
   });
 
   it('8. should restore available budget when reservation is released after failure', async () => {
@@ -324,7 +340,7 @@ describe('Phase 6.2: InMemoryBudgetStore', () => {
     const { reservation } = await store.acquireReservation(request, dailyLimit);
     const resId = reservation!.id;
 
-    await store.markSubmitted(resId, '0xpending123');
+    await store.markSubmitted(resId, '0x' + 'b'.repeat(64));
     const held = await store.holdForReconciliation(resId, 'RPC timeout waiting for receipt');
     expect(held.status).toBe('HELD_FOR_RECONCILIATION');
 
@@ -378,7 +394,7 @@ describe('Phase 6.2: InMemoryBudgetStore', () => {
     await store.releaseReservation(resId, 'test failure');
 
     // Attempting to submit or commit an already released reservation should fail
-    await expect(store.markSubmitted(resId, '0x123')).rejects.toThrow(
+    await expect(store.markSubmitted(resId, '0x' + 'c'.repeat(64))).rejects.toThrow(
       'Cannot mark reservation as SUBMITTED from status RELEASED'
     );
     await expect(store.commitReservation(resId)).rejects.toThrow(
