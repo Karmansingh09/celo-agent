@@ -1,7 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { createSiweMessage } from 'viem/siwe';
+import {
+  normalizeWalletAddress,
+  shouldInvalidateWalletSession,
+} from './auth-wallet';
+
+export { normalizeWalletAddress, shouldInvalidateWalletSession } from './auth-wallet';
 
 export interface AuthContextType {
   authenticated: boolean;
@@ -36,6 +42,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoadingSession, setIsLoadingSession] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [hasProvider, setHasProvider] = useState<boolean>(false);
+  const walletAddressRef = useRef<string | null>(null);
+  const ownerAddressRef = useRef<string | null>(null);
+  const authenticatedRef = useRef(false);
+  const authEpochRef = useRef(0);
+  const providerEventEpochRef = useRef(0);
+  const providerAccountsResolvedRef = useRef(false);
+  const pendingLogoutRef = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    walletAddressRef.current = walletAddress;
+    ownerAddressRef.current = ownerAddress;
+    authenticatedRef.current = authenticated;
+  }, [walletAddress, ownerAddress, authenticated]);
+
+  const clearLocalAuth = useCallback(() => {
+    authEpochRef.current += 1;
+    authenticatedRef.current = false;
+    ownerAddressRef.current = null;
+    setAuthenticated(false);
+    setOwnerAddress(null);
+    setError(null);
+  }, []);
+
+  // Step 6: Logout using POST /api/auth/logout. The promise is tracked so a
+  // sign-in started immediately after wallet invalidation waits for the old
+  // server session to be deleted first.
+  const logout = useCallback(async (): Promise<void> => {
+    clearLocalAuth();
+
+    const previousLogout = pendingLogoutRef.current;
+    const operation = (async () => {
+      if (previousLogout) {
+        await previousLogout;
+      }
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch {
+        // Local auth state is already cleared; a later session check will fail closed.
+      }
+    })();
+
+    pendingLogoutRef.current = operation;
+    try {
+      await operation;
+    } finally {
+      if (pendingLogoutRef.current === operation) {
+        pendingLogoutRef.current = null;
+      }
+    }
+  }, [clearLocalAuth]);
 
   // Check for window.ethereum on client mount
   useEffect(() => {
@@ -43,12 +104,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setHasProvider(true);
       const ethereum = (window as any).ethereum;
 
-      // Listen for account/chain changes
-      const handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length === 0) {
-          setWalletAddress(null);
-        } else {
-          setWalletAddress(accounts[0]);
+      // Listen for account/chain changes. A session is bound to the wallet
+      // address that signed SIWE; changing or disconnecting the wallet must
+      // never leave the old authenticated owner active.
+      const handleAccountsChanged = (accounts: string[], fromProviderEvent = true) => {
+        if (fromProviderEvent) {
+          providerEventEpochRef.current += 1;
+          authEpochRef.current += 1;
+        }
+        const nextWalletAddress = accounts.length > 0 ? accounts[0] : null;
+        walletAddressRef.current = nextWalletAddress;
+        setWalletAddress(nextWalletAddress);
+
+        if (
+          shouldInvalidateWalletSession(
+            authenticatedRef.current,
+            ownerAddressRef.current,
+            nextWalletAddress
+          )
+        ) {
+          void logout();
         }
       };
 
@@ -70,9 +145,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ethereum
           .request({ method: 'eth_accounts' })
           .then((accs: string[]) => {
-            if (accs && accs.length > 0) {
-              setWalletAddress(accs[0]);
-            }
+            providerAccountsResolvedRef.current = true;
+            handleAccountsChanged(Array.isArray(accs) ? accs : [], false);
           })
           .catch(() => {});
       }
@@ -86,10 +160,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       setHasProvider(false);
     }
-  }, []);
+  }, [logout]);
 
   // Step 5: Session Restoration on app load
   const refreshSession = useCallback(async () => {
+    const requestEpoch = authEpochRef.current;
     try {
       setIsLoadingSession(true);
       const res = await fetch('/api/auth/session', {
@@ -102,6 +177,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         if (data.authenticated && data.ownerAddress) {
+          if (requestEpoch !== authEpochRef.current) {
+            return;
+          }
+
+          if (
+            providerAccountsResolvedRef.current &&
+            shouldInvalidateWalletSession(
+              true,
+              data.ownerAddress,
+              walletAddressRef.current
+            )
+          ) {
+            clearLocalAuth();
+            void logout();
+            return;
+          }
+
+          authenticatedRef.current = true;
+          ownerAddressRef.current = data.ownerAddress;
           setAuthenticated(true);
           setOwnerAddress(data.ownerAddress);
           setError(null);
@@ -109,15 +203,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      setAuthenticated(false);
-      setOwnerAddress(null);
+      if (requestEpoch === authEpochRef.current) {
+        authenticatedRef.current = false;
+        ownerAddressRef.current = null;
+        setAuthenticated(false);
+        setOwnerAddress(null);
+      }
     } catch {
-      setAuthenticated(false);
-      setOwnerAddress(null);
+      if (requestEpoch === authEpochRef.current) {
+        authenticatedRef.current = false;
+        ownerAddressRef.current = null;
+        setAuthenticated(false);
+        setOwnerAddress(null);
+      }
     } finally {
       setIsLoadingSession(false);
     }
-  }, []);
+  }, [clearLocalAuth, logout]);
 
   useEffect(() => {
     refreshSession();
@@ -135,6 +237,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsConnecting(true);
       const ethereum = (window as any).ethereum;
+      const requestEpoch = authEpochRef.current;
+      const providerEventEpoch = providerEventEpochRef.current;
       const accounts: string[] = await ethereum.request({
         method: 'eth_requestAccounts',
       });
@@ -145,7 +249,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const account = accounts[0];
+      if (
+        requestEpoch !== authEpochRef.current ||
+        providerEventEpoch !== providerEventEpochRef.current
+      ) {
+        return null;
+      }
+      walletAddressRef.current = account;
       setWalletAddress(account);
+
+      if (
+        shouldInvalidateWalletSession(
+          authenticatedRef.current,
+          ownerAddressRef.current,
+          account
+        )
+      ) {
+        void logout();
+      }
 
       const currentChainHex: string = await ethereum.request({ method: 'eth_chainId' });
       const currentChain = parseInt(currentChainHex, 16);
@@ -167,12 +288,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Step 3: SIWE Authentication Flow
   const signIn = async (): Promise<boolean> => {
     setError(null);
-    let targetAddress = walletAddress;
+    const initialLogout = pendingLogoutRef.current;
+    if (initialLogout) {
+      await initialLogout;
+    }
+
+    let targetAddress = walletAddressRef.current || walletAddress;
 
     // Connect wallet first if not already connected
     if (!targetAddress) {
       targetAddress = await connectWallet();
       if (!targetAddress) return false;
+    }
+
+    const signInEpoch = authEpochRef.current;
+    const providerEventEpoch = providerEventEpochRef.current;
+    const isCurrentAttempt = () =>
+      signInEpoch === authEpochRef.current &&
+      providerEventEpoch === providerEventEpochRef.current &&
+      normalizeWalletAddress(walletAddressRef.current) === normalizeWalletAddress(targetAddress);
+
+    const logoutBeforeSignIn = pendingLogoutRef.current;
+    if (logoutBeforeSignIn) {
+      await logoutBeforeSignIn;
+      if (!isCurrentAttempt()) {
+        return false;
+      }
     }
 
     const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : null;
@@ -193,6 +334,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!nonceData.success || !nonceData.nonce) {
         throw new Error(nonceData.error || 'Server did not return a valid challenge nonce.');
       }
+      if (!isCurrentAttempt()) {
+        return false;
+      }
       const nonce = nonceData.nonce;
 
       // 2. Read domain, URI, and chain ID
@@ -200,6 +344,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const uri = window.location.origin;
 
       const chainHex: string = await ethereum.request({ method: 'eth_chainId' });
+      if (!isCurrentAttempt()) {
+        return false;
+      }
       let currentChainId = parseInt(chainHex, 16);
 
       // Ensure wallet is switched to Celo Sepolia
@@ -237,6 +384,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      if (!isCurrentAttempt()) {
+        return false;
+      }
+
       // 3. Construct EIP-4361 SIWE message
       const message = createSiweMessage({
         domain,
@@ -255,6 +406,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         params: [message, targetAddress],
       });
 
+      if (!isCurrentAttempt()) {
+        return false;
+      }
+
       // 5. Submit to backend verify endpoint
       const verifyRes = await fetch('/api/auth/verify', {
         method: 'POST',
@@ -269,6 +424,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(verifyData.error || 'Authentication verification failed on server.');
       }
 
+      if (!isCurrentAttempt()) {
+        return false;
+      }
+
+      authenticatedRef.current = true;
+      ownerAddressRef.current = verifyData.ownerAddress;
       setAuthenticated(true);
       setOwnerAddress(verifyData.ownerAddress);
       setError(null);
@@ -282,24 +443,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     } finally {
       setIsSigning(false);
-    }
-  };
-
-  // Step 6: Logout using POST /api/auth/logout
-  const logout = async (): Promise<void> => {
-    try {
-      setError(null);
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-    } catch {
-      // Ignore network errors on logout
-    } finally {
-      setAuthenticated(false);
-      setOwnerAddress(null);
     }
   };
 
