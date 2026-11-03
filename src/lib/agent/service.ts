@@ -354,6 +354,16 @@ export class AgentService {
     agentId: string,
     reason?: string
   ): Promise<Agent> {
+    return withAgentOperationLock(normalizeAgentOperationKey(agentId), () =>
+      this.pauseAgentInternal(authenticatedOwnerAddress, agentId, reason)
+    );
+  }
+
+  private async pauseAgentInternal(
+    authenticatedOwnerAddress: string,
+    agentId: string,
+    reason?: string
+  ): Promise<Agent> {
     const normalizedOwner = normalizeOwnerAddress(authenticatedOwnerAddress);
 
     if (typeof agentId !== 'string' || agentId.trim() === '') {
@@ -383,6 +393,16 @@ export class AgentService {
    * Clears previous pause reason unless a new reason is explicitly provided.
    */
   public async resumeAgent(
+    authenticatedOwnerAddress: string,
+    agentId: string,
+    reason?: string
+  ): Promise<Agent> {
+    return withAgentOperationLock(normalizeAgentOperationKey(agentId), () =>
+      this.resumeAgentInternal(authenticatedOwnerAddress, agentId, reason)
+    );
+  }
+
+  private async resumeAgentInternal(
     authenticatedOwnerAddress: string,
     agentId: string,
     reason?: string
