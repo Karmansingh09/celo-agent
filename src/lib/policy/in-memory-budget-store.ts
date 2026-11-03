@@ -359,8 +359,13 @@ export class InMemoryBudgetStore implements IBudgetStore {
       throw new Error(`Reservation not found: ${reservationId}`);
     }
 
-    // Idempotent retry: if already submitted with same txHash, return existing
+    // Idempotent retry is allowed only for the same transaction hash.
     if (res.status === 'SUBMITTED') {
+      if (res.txHash?.toLowerCase() !== txHash.toLowerCase()) {
+        throw new Error(
+          `Reservation ${reservationId} is already submitted with a different transaction hash`
+        );
+      }
       return { ...res };
     }
 
@@ -378,7 +383,8 @@ export class InMemoryBudgetStore implements IBudgetStore {
   }
 
   /**
-   * Transitions a reservation to COMMITTED state (confirmed on-chain).
+   * Transitions a submitted or reconciled reservation to COMMITTED state.
+   * Receipt verification must complete before this internal transition is called.
    * Moves amountWei from reservedWei into spentWei exactly once.
    */
   public async commitReservation(reservationId: string): Promise<BudgetReservation> {
@@ -392,11 +398,7 @@ export class InMemoryBudgetStore implements IBudgetStore {
       return { ...res };
     }
 
-    if (
-      res.status !== 'SUBMITTED' &&
-      res.status !== 'RESERVED' &&
-      res.status !== 'HELD_FOR_RECONCILIATION'
-    ) {
+    if (res.status !== 'SUBMITTED' && res.status !== 'HELD_FOR_RECONCILIATION') {
       throw new Error(
         `Invalid state transition: Cannot commit reservation from status ${res.status}`
       );
@@ -429,7 +431,8 @@ export class InMemoryBudgetStore implements IBudgetStore {
   }
 
   /**
-   * Transitions a reservation to RELEASED state (failed/rejected pre-settlement).
+   * Transitions only a RESERVED reservation to RELEASED state
+   * (failed/rejected before submission).
    * Releases amountWei from reservedWei back into availableWei exactly once.
    */
   public async releaseReservation(
@@ -446,11 +449,7 @@ export class InMemoryBudgetStore implements IBudgetStore {
       return { ...res };
     }
 
-    if (
-      res.status !== 'RESERVED' &&
-      res.status !== 'SUBMITTED' &&
-      res.status !== 'HELD_FOR_RECONCILIATION'
-    ) {
+    if (res.status !== 'RESERVED') {
       throw new Error(
         `Invalid state transition: Cannot release reservation from status ${res.status}`
       );

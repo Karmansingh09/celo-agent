@@ -276,6 +276,42 @@ describe('Phase 6.2: InMemoryBudgetStore', () => {
     expect(state.availableCusd).toBe('0.5'); // Fully restored to 0.50
   });
 
+  it('8a. should preserve submitted and uncertain reservations when generic release is attempted', async () => {
+    const submittedRequest: ReservationRequest = {
+      agentId: agentA,
+      amountCusd: '0.10',
+      recipient: recipientA,
+      idempotencyKey: 'release-submitted-guard',
+      timestamp: baseTime,
+    };
+    const submittedResult = await store.acquireReservation(submittedRequest, dailyLimit);
+    const submittedId = submittedResult.reservation!.id;
+    await store.markSubmitted(submittedId, '0x' + '4'.repeat(64));
+
+    await expect(store.releaseReservation(submittedId, 'unsafe release')).rejects.toThrow(
+      'Cannot release reservation from status SUBMITTED'
+    );
+    expect((await store.getReservationById(submittedId))?.status).toBe('SUBMITTED');
+
+    const heldRequest: ReservationRequest = {
+      ...submittedRequest,
+      idempotencyKey: 'release-held-guard',
+    };
+    const heldResult = await store.acquireReservation(heldRequest, dailyLimit);
+    const heldId = heldResult.reservation!.id;
+    await store.markSubmitted(heldId, '0x' + '5'.repeat(64));
+    await store.holdForReconciliation(heldId, 'receipt unavailable');
+
+    await expect(store.releaseReservation(heldId, 'unsafe release')).rejects.toThrow(
+      'Cannot release reservation from status HELD_FOR_RECONCILIATION'
+    );
+    expect((await store.getReservationById(heldId))?.status).toBe('HELD_FOR_RECONCILIATION');
+
+    const state = await store.getBudgetState(agentA, '2026-10-03', dailyLimit);
+    expect(state.reservedCusd).toBe('0.2');
+    expect(state.spentCusd).toBe('0');
+  });
+
   it('9. should keep amount encumbered when held for reconciliation', async () => {
     const request: ReservationRequest = {
       agentId: agentA,
@@ -317,6 +353,7 @@ describe('Phase 6.2: InMemoryBudgetStore', () => {
     const { reservation } = await store.acquireReservation(request, dailyLimit);
     const resId = reservation!.id;
 
+    await store.markSubmitted(resId, '0x' + '1'.repeat(64));
     await store.commitReservation(resId);
     // Duplicate commit
     await store.commitReservation(resId);
@@ -457,6 +494,7 @@ describe('Phase 6.2: InMemoryBudgetStore', () => {
       ).valid
     ).toBe(true);
 
+    await store.markSubmitted(r1.reservation!.id, '0x' + '2'.repeat(64));
     await store.commitReservation(r1.reservation!.id);
     const stateAfterCommit = await store.getBudgetState(agentA, '2026-10-03', dailyLimit);
     expect(
@@ -519,7 +557,8 @@ describe('Phase 6.2: InMemoryBudgetStore', () => {
     expect(resDay2.success).toBe(true);
     expect(resDay2.reservation?.windowId).toBe('2026-10-04');
 
-    // Now, after midnight, commit res1 (from Day 1)
+    // Now, after midnight, submit and commit res1 (from Day 1)
+    await store.markSubmitted(res1.reservation!.id, '0x' + '3'.repeat(64));
     const committed1 = await store.commitReservation(res1.reservation!.id);
     expect(committed1.status).toBe('COMMITTED');
 
@@ -583,4 +622,3 @@ describe('Phase 6.2: InMemoryBudgetStore', () => {
     expect(verifiedState.reservedCusd).toBe('0');
   });
 });
-

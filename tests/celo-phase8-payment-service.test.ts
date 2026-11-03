@@ -21,6 +21,7 @@ import {
   InMemoryBudgetStore,
   AgentSpendingPolicy,
 } from '../src/lib/policy';
+import { createTestSettlementVerifier } from './helpers/settlement';
 import * as celoPaymentModule from '../src/lib/celo/payment';
 
 describe('Phase 8.2: AgentPaymentService (Payment Orchestration & Approvals)', () => {
@@ -55,7 +56,11 @@ describe('Phase 8.2: AgentPaymentService (Payment Orchestration & Approvals)', (
     agentService = new AgentService(agentStore, () => currentTime);
 
     budgetStore = new InMemoryBudgetStore();
-    policyEnforcementService = new PolicyEnforcementService(budgetStore, () => currentTime);
+    policyEnforcementService = new PolicyEnforcementService(
+      budgetStore,
+      () => currentTime,
+      createTestSettlementVerifier()
+    );
 
     pendingApprovalStore = new InMemoryPendingApprovalStore();
 

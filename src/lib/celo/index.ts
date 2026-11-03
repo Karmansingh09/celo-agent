@@ -5,3 +5,4 @@ export * from './wallet-client';
 export * from './balance';
 export * from './transactions';
 export * from './payment';
+export * from './settlement-verifier';

@@ -103,7 +103,7 @@ describe('Phase 8.1: Policy & Budget Singleton Wiring', () => {
     expect(store).toBe(globalThis.__celoBudgetStore);
   });
 
-  it('6. existing budget and enforcement behavior still works completely through singleton instances', async () => {
+  it('6. singleton settlement confirmation fails closed when RPC wallet configuration is unavailable', async () => {
     const store = getBudgetStore();
     const service = getPolicyEnforcementService();
 
@@ -127,23 +127,25 @@ describe('Phase 8.1: Policy & Budget Singleton Wiring', () => {
     expect(submittedRes.status).toBe('SUBMITTED');
     expect(submittedRes.txHash).toBe(validTxHash);
 
-    // 3. Confirm settlement
+    // 3. Confirmation must not commit from a hash when the verifier cannot
+    // establish the trusted sender/token/RPC configuration.
     const confirmation: TrustedSettlementConfirmation = {
       txHash: validTxHash,
       blockNumber: 123456n,
       confirmedAt: Date.now(),
     };
-    const committedRes = await service.confirmSettlement(
-      reserveResult.reservation!.id,
-      confirmation
-    );
-    expect(committedRes.status).toBe('COMMITTED');
+    await expect(
+      service.confirmSettlement(reserveResult.reservation!.id, confirmation)
+    ).rejects.toThrow('Settlement verification requires a configured trusted sender wallet');
+
+    const submittedStillPending = await store.getReservationById(reserveResult.reservation!.id);
+    expect(submittedStillPending?.status).toBe('SUBMITTED');
 
     // 4. Verify budget state on singleton store
-    const windowId = committedRes.windowId;
+    const windowId = submittedStillPending!.windowId;
     const budgetState = await store.getBudgetState(agentId, windowId, '5.00');
-    expect(budgetState.spentCusd).toBe('0.4');
-    expect(budgetState.reservedCusd).toBe('0');
+    expect(budgetState.spentCusd).toBe('0');
+    expect(budgetState.reservedCusd).toBe('0.4');
     expect(budgetState.availableCusd).toBe('4.6');
   });
 

@@ -22,6 +22,7 @@ import {
   InMemoryBudgetStore,
   AgentSpendingPolicy,
 } from '../src/lib/policy';
+import { createTestSettlementVerifier } from './helpers/settlement';
 
 /**
  * Phase 8.3: Controlled Payment Execution Boundary Tests
@@ -61,7 +62,11 @@ describe('Phase 8.3: Controlled Payment Execution Boundary', () => {
     agentStore = new InMemoryAgentStore(() => currentTime);
     agentService = new AgentService(agentStore, () => currentTime);
     budgetStore = new InMemoryBudgetStore();
-    policyEnforcementService = new PolicyEnforcementService(budgetStore, () => currentTime);
+    policyEnforcementService = new PolicyEnforcementService(
+      budgetStore,
+      () => currentTime,
+      createTestSettlementVerifier()
+    );
     approvalStore = new InMemoryPendingApprovalStore();
 
     executeMock = vi.fn<(request: PaymentExecutionRequest) => Promise<PaymentExecutionResult>>().mockResolvedValue({

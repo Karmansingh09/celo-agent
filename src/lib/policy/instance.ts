@@ -1,6 +1,7 @@
 import 'server-only';
 import { InMemoryBudgetStore } from './in-memory-budget-store';
 import { PolicyEnforcementService } from './enforcement-service';
+import { CeloSettlementReceiptVerifier } from '../celo/settlement-verifier';
 
 /**
  * Phase 8.1: Shared Policy & Budget Service Singleton Wiring
@@ -47,7 +48,11 @@ export function getBudgetStore(): InMemoryBudgetStore {
  */
 export function getPolicyEnforcementService(): PolicyEnforcementService {
   if (!globalThis.__celoPolicyEnforcementService) {
-    globalThis.__celoPolicyEnforcementService = new PolicyEnforcementService(getBudgetStore());
+    globalThis.__celoPolicyEnforcementService = new PolicyEnforcementService(
+      getBudgetStore(),
+      () => Date.now(),
+      new CeloSettlementReceiptVerifier()
+    );
   }
   return globalThis.__celoPolicyEnforcementService;
 }

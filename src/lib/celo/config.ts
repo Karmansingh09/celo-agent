@@ -1,4 +1,4 @@
-import { defineChain } from 'viem';
+import { defineChain, getAddress, isAddress } from 'viem';
 import { celo, celoSepolia } from 'viem/chains';
 
 /**
@@ -82,4 +82,24 @@ export function getMaxPaymentLimit(): string {
     return '0.01';
   }
   return envVal.trim();
+}
+
+/**
+ * Resolves the configured cUSD token contract for the active Celo network.
+ *
+ * Settlement verification fails closed when the token contract is not
+ * explicitly configured. No token address is guessed here.
+ */
+export function getCusdTokenAddress(network?: string): `0x${string}` {
+  const resolvedNetwork = network === 'mainnet' ? 'mainnet' : 'sepolia';
+  const envName = resolvedNetwork === 'mainnet'
+    ? 'CELO_MAINNET_CUSD_ADDRESS'
+    : 'CELO_SEPOLIA_CUSD_ADDRESS';
+  const configuredAddress = process.env[envName]?.trim();
+
+  if (!configuredAddress || !isAddress(configuredAddress)) {
+    throw new Error(`${envName} must be configured with a valid cUSD token contract address`);
+  }
+
+  return getAddress(configuredAddress);
 }

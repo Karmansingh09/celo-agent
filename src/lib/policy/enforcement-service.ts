@@ -12,6 +12,10 @@ import {
   ReservationExpectation,
   parseCusdToBaseUnits,
 } from './budget-types';
+import {
+  SettlementReceiptVerifier,
+  SettlementVerificationRequest,
+} from './settlement-types';
 
 /**
  * Phase 6.3: Policy and Budget Enforcement Integration
@@ -43,9 +47,8 @@ import {
  * 5. Distinct Transaction Lifecycle & Settlement Evidence:
  *    - Broadcasting a transaction to the network transitions reservation to SUBMITTED via `markSubmitted`.
  *      The amount remains encumbered in `reservedWei` and is NOT settled.
- *    - A reservation becomes COMMITTED via `confirmSettlement` ONLY when verified on-chain inclusion
- *      evidence (`SettlementEvidence` with a valid 32-byte txHash) is supplied by a trusted internal caller
- *      (e.g., payment execution pipeline). The domain layer does NOT pretend to query RPC directly.
+ *    - A reservation becomes COMMITTED via `confirmSettlement` ONLY after an injected
+ *      receipt verifier independently validates on-chain inclusion and the expected token transfer.
  *    - Unconfirmed/timed-out transactions transition to HELD_FOR_RECONCILIATION via `holdForReconciliation`,
  *      preserving encumbrance to prevent double-spending until an explicit reconciliation process resolves it.
  */
@@ -76,16 +79,8 @@ export interface UserApproval {
 }
 
 /**
- * Settlement confirmation attestation supplied by a trusted internal caller
- * (e.g. payment execution pipeline) after receipt confirmation has been observed.
- * 
- * CRITICAL TRUST BOUNDARY & ARCHITECTURAL LIMITATION:
- * 1. This domain service does NOT independently connect to Celo RPC, inspect mempools,
- *    or verify cryptographic Merkle inclusion proofs.
- * 2. Supplying this object asserts that the trusted calling layer has already independently
- *    verified the on-chain transaction receipt.
- * 3. Checking the 32-byte 0x-prefixed hex format of `confirmation.txHash` is solely a defensive
- *    syntax sanity check; it does NOT prove or verify that the transaction succeeded or confirmed on-chain.
+ * Settlement confirmation request. The transaction hash is a lookup key only;
+ * the injected receipt verifier is the required source of settlement evidence.
  */
 export interface TrustedSettlementConfirmation {
   /** 32-byte 0x-prefixed transaction hash verified on-chain by the trusted caller */
@@ -164,7 +159,8 @@ export type ClockFn = () => number;
 export class PolicyEnforcementService {
   constructor(
     private readonly budgetStore: IBudgetStore,
-    private readonly clock: ClockFn = () => Date.now()
+    private readonly clock: ClockFn = () => Date.now(),
+    private readonly settlementReceiptVerifier?: SettlementReceiptVerifier
   ) {}
 
   /**
@@ -489,20 +485,12 @@ export class PolicyEnforcementService {
   }
 
   /**
-   * Phase 2 of execution lifecycle: transitions reservation to COMMITTED upon notification
-   * of on-chain confirmation from a trusted internal caller.
-   * 
-   * CRITICAL TRUST BOUNDARY & CALLER RESPONSIBILITY:
-   * 1. This domain method does NOT query Celo RPC or verify blockchain receipts.
-   * 2. Checking the syntax of `confirmation.txHash` is purely a defensive format filter
-   *    (requiring a 32-byte 0x-prefixed hex string). It DOES NOT verify receipt confirmation
-   *    or prove successful on-chain settlement.
-   * 3. Calling this method permanently moves funds from `reservedWei` into `spentWei`.
-   *    Therefore, ONLY trusted internal callers (e.g. the payment service following receipt
-   *    verification) may invoke this method. Untrusted callers must never invoke it.
-   * 
-   * @param reservationId The unique reservation ID
-   * @param confirmation Attestation record supplied by the trusted execution layer asserting receipt confirmation
+   * Phase 2 of execution lifecycle: independently verifies a submitted
+   * transaction receipt and then transitions the reservation to COMMITTED.
+   *
+   * A transaction hash is only a lookup key here. Commitment requires the
+   * injected receipt verifier to validate the configured chain, successful
+   * receipt, transaction identity, and expected token transfer.
    */
   public async confirmSettlement(
     reservationId: string,
@@ -518,14 +506,45 @@ export class PolicyEnforcementService {
         'confirmSettlement requires a valid TrustedSettlementConfirmation containing a 32-byte 0x transaction hash'
       );
     }
-    // Safely attempt to record submitted state with verified txHash if currently RESERVED
-    try {
-      await this.budgetStore.markSubmitted(reservationId, confirmation.txHash.trim());
-    } catch {
-      // If already SUBMITTED, COMMITTED (idempotent call), or HELD_FOR_RECONCILIATION,
-      // markSubmitted throws an invalid transition. We proceed to commitReservation,
-      // which definitively verifies the permitted lifecycle states and prevents illegal transitions.
+    const reservation = await this.budgetStore.getReservationById(reservationId);
+    if (!reservation) {
+      throw new Error(`Reservation not found: ${reservationId}`);
     }
+
+    if (reservation.status === 'COMMITTED') {
+      return reservation;
+    }
+
+    if (reservation.status !== 'SUBMITTED' && reservation.status !== 'HELD_FOR_RECONCILIATION') {
+      throw new Error(
+        `Cannot confirm settlement from reservation status ${reservation.status}; receipt verification requires SUBMITTED or HELD_FOR_RECONCILIATION`
+      );
+    }
+
+    const normalizedTxHash = confirmation.txHash.trim();
+    if (!reservation.txHash || reservation.txHash.toLowerCase() !== normalizedTxHash.toLowerCase()) {
+      throw new Error('Settlement transaction hash does not match the reservation submission');
+    }
+
+    if (!this.settlementReceiptVerifier) {
+      throw new Error('Settlement receipt verification is unavailable; reservation remains unsettled');
+    }
+
+    const verificationRequest: SettlementVerificationRequest = {
+      txHash: normalizedTxHash,
+      amountWei: reservation.amountWei,
+      recipient: reservation.recipient,
+    };
+    const verified = await this.settlementReceiptVerifier.verify(verificationRequest);
+
+    if (
+      verified.txHash.toLowerCase() !== normalizedTxHash.toLowerCase() ||
+      verified.amountWei !== reservation.amountWei ||
+      verified.recipient.toLowerCase() !== reservation.recipient.toLowerCase()
+    ) {
+      throw new Error('Settlement verifier returned incomplete or mismatched evidence');
+    }
+
     return this.budgetStore.commitReservation(reservationId);
   }
 

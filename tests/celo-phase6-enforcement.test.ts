@@ -8,6 +8,7 @@ import {
 import { InMemoryBudgetStore } from '../src/lib/policy/in-memory-budget-store';
 import { AgentSpendingPolicy } from '../src/lib/policy/types';
 import { validateBudgetAccountingInvariant } from '../src/lib/policy/budget-types';
+import { createTestSettlementVerifier } from './helpers/settlement';
 
 describe('Phase 6.3: PolicyEnforcementService', () => {
   let store: InMemoryBudgetStore;
@@ -35,7 +36,11 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
     store = new InMemoryBudgetStore();
     currentTime = baseTime;
     // Inject trusted service clock
-    service = new PolicyEnforcementService(store, () => currentTime);
+    service = new PolicyEnforcementService(
+      store,
+      () => currentTime,
+      createTestSettlementVerifier()
+    );
   });
 
   it('1. should allow auto-approved request within threshold, acquire reservation, and permit execution', async () => {
@@ -438,6 +443,7 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
 
     const first = await service.enforcePayment(defaultPolicy, request);
     expect(first.allowedToExecute).toBe(true);
+
     expect(first.outcome).toBe('RESERVED');
 
     // Duplicate identical request
@@ -465,6 +471,7 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
       txHash: validTxHash,
       blockNumber: 12345678n,
     };
+    await service.markSubmitted(first.reservation!.id, validTxHash);
     await service.confirmSettlement(first.reservation!.id, confirmation);
 
     // Duplicate request
@@ -509,6 +516,8 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
     const res = await service.enforcePayment(defaultPolicy, req);
     expect(res.allowedToExecute).toBe(true);
     const resId = res.reservation!.id;
+
+    await service.markSubmitted(resId, validTxHash);
 
     let state = await service.getBudgetState(agentId, '2026-10-03', '1.00');
     expect(state.reservedCusd).toBe('0.1');
@@ -598,6 +607,8 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
     const res = await service.enforcePayment(defaultPolicy, req);
     const resId = res.reservation!.id;
 
+    await service.markSubmitted(resId, validTxHash);
+
     // Missing confirmation object / null
     await expect(
       service.confirmSettlement(resId, null as unknown as TrustedSettlementConfirmation)
@@ -612,7 +623,7 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
       service.confirmSettlement(resId, { txHash: '0x1234' })
     ).rejects.toThrow('32-byte 0x transaction hash');
 
-    // Valid syntax confirmation from trusted caller confirms settlement
+    // A matching submitted hash is independently verified before commitment.
     const confirmed = await service.confirmSettlement(resId, {
       txHash: validTxHash,
       attestedBy: 'trusted-payment-service',
@@ -705,6 +716,8 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
     const res1 = await service.enforcePayment(defaultPolicy, req1);
     const id1 = res1.reservation!.id;
 
+    await service.markSubmitted(id1, validTxHash);
+
     const firstCommit = await service.confirmSettlement(id1, confirmation);
     expect(firstCommit.status).toBe('COMMITTED');
 
@@ -741,7 +754,7 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
     await service.failAndRelease(id3, 'Payment failed pre-execution');
 
     await expect(service.confirmSettlement(id3, confirmation)).rejects.toThrow(
-      'Cannot commit reservation from status RELEASED'
+      'Cannot confirm settlement from reservation status RELEASED'
     );
   });
 });
