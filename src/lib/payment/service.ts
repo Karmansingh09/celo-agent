@@ -42,7 +42,7 @@ import {
   InvalidReservationError,
   ExecutionInProgressError,
 } from './execution-types';
-import { CeloPaymentExecutor } from './execution';
+import { CeloPaymentRailExecutor } from './rail-execution';
 
 type UnresolvedApprovalIdentity = Pick<
   PendingApproval,
@@ -86,7 +86,7 @@ export class AgentPaymentService {
     private readonly approvalTtlMs: number = 86_400_000, // 24 hours default
     paymentExecutor?: IPaymentExecutor
   ) {
-    this.paymentExecutor = paymentExecutor || new CeloPaymentExecutor();
+    this.paymentExecutor = paymentExecutor || new CeloPaymentRailExecutor();
     this.agentService.setTerminationCleanupHandler((agent, reason) =>
       this.cancelPendingApprovalsForAgentInternal(agent.id, reason)
     );
