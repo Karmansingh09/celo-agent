@@ -9,11 +9,11 @@ import {
   PublicClient,
   WalletClient,
 } from 'viem';
-import { getAgentAccount } from '../celo/account';
 import { getCusdTokenAddress, getExplorerTxUrl, getCeloChain, resolveCeloNetwork } from '../celo/config';
 import { getPublicClient } from '../celo/public-client';
-import { getAgentWalletClient } from '../celo/wallet-client';
 import { CeloSettlementReceiptVerifier } from '../celo/settlement-verifier';
+import { Account } from 'viem/accounts';
+import { AgentSignerProvider, getAgentSignerProvider } from '../signer';
 import {
   AssetMismatchError,
   IPaymentExecutor,
@@ -25,7 +25,7 @@ export const CUSD_DECIMALS = 18;
 
 export type CusdPublicClientFactory = (network: 'sepolia') => PublicClient;
 export type CusdWalletClientFactory = (network: 'sepolia') => WalletClient | null;
-export type CusdAccountResolver = () => ReturnType<typeof getAgentAccount>;
+export type CusdAccountResolver = () => Account | null;
 export type CusdTokenResolver = (network: 'sepolia') => `0x${string}`;
 
 export interface CusdExecutionDependencies {
@@ -33,6 +33,7 @@ export interface CusdExecutionDependencies {
   walletClientFactory?: CusdWalletClientFactory;
   accountResolver?: CusdAccountResolver;
   tokenResolver?: CusdTokenResolver;
+  signerProvider?: AgentSignerProvider;
 }
 
 function isUncertainError(error: unknown): boolean {
@@ -56,15 +57,17 @@ function isUncertainError(error: unknown): boolean {
  */
 export class CeloCusdPaymentExecutor implements IPaymentExecutor {
   private readonly publicClientFactory: CusdPublicClientFactory;
-  private readonly walletClientFactory: CusdWalletClientFactory;
-  private readonly accountResolver: CusdAccountResolver;
+  private readonly walletClientFactory?: CusdWalletClientFactory;
+  private readonly accountResolver?: CusdAccountResolver;
   private readonly tokenResolver: CusdTokenResolver;
+  private readonly signerProvider: AgentSignerProvider;
 
   constructor(dependencies: CusdExecutionDependencies = {}) {
     this.publicClientFactory = dependencies.publicClientFactory || (() => getPublicClient('sepolia'));
-    this.walletClientFactory = dependencies.walletClientFactory || (() => getAgentWalletClient('sepolia'));
-    this.accountResolver = dependencies.accountResolver || getAgentAccount;
+    this.walletClientFactory = dependencies.walletClientFactory;
+    this.accountResolver = dependencies.accountResolver;
     this.tokenResolver = dependencies.tokenResolver || (() => getCusdTokenAddress('sepolia'));
+    this.signerProvider = dependencies.signerProvider || getAgentSignerProvider();
   }
 
   public async execute(request: PaymentExecutionRequest): Promise<PaymentExecutionResult> {
@@ -108,15 +111,36 @@ export class CeloCusdPaymentExecutor implements IPaymentExecutor {
       };
     }
 
-    const account = this.accountResolver();
-    if (!account) {
-      return { success: false, status: 'FAILED', error: 'Agent signer is not configured' };
+    let account: Account | null = null;
+    let walletClient: WalletClient | null = null;
+    try {
+      if (this.accountResolver && this.walletClientFactory) {
+        account = this.accountResolver();
+        walletClient = this.walletClientFactory(network);
+      } else {
+        if (!request.executionWalletAddress) {
+          return {
+            success: false,
+            status: 'FAILED',
+            error: 'Agent wallet not configured: execution wallet is not bound to this agent',
+          };
+        }
+        const signer = await this.signerProvider.resolve({
+          agentId: request.agentId,
+          walletAddress: request.executionWalletAddress,
+        });
+        account = signer.account;
+        walletClient = signer.getWalletClient(network);
+      }
+    } catch (error: unknown) {
+      return {
+        success: false,
+        status: 'FAILED',
+        error: error instanceof Error ? error.message : 'Agent signer is unavailable',
+      };
     }
-
-    const walletClient = this.walletClientFactory(network);
-    if (!walletClient) {
-      return { success: false, status: 'FAILED', error: 'Agent wallet client is unavailable' };
-    }
+    if (!account) return { success: false, status: 'FAILED', error: 'Agent signer is not configured' };
+    if (!walletClient) return { success: false, status: 'FAILED', error: 'Agent wallet client is unavailable' };
 
     let tokenAddress: `0x${string}`;
     try {

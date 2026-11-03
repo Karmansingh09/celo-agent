@@ -48,6 +48,8 @@ export interface PaymentExecutionRequest {
   reservationId: string;
   /** Target agent identifier */
   agentId: string;
+  /** Server-resolved execution wallet bound to the agent; never client-supplied. */
+  executionWalletAddress?: string;
   /** Recipient EVM address (0x...) */
   recipient: string;
   /** Target execution asset */

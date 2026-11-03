@@ -1,7 +1,9 @@
 import 'server-only';
 import { InMemoryBudgetStore } from './in-memory-budget-store';
+import { PostgresBudgetStore } from './postgres-budget-store';
 import { PolicyEnforcementService } from './enforcement-service';
 import { CeloSettlementReceiptVerifier } from '../celo/settlement-verifier';
+import { assertDurableStorageConfigured, isDatabaseConfigured } from '../db/postgres';
 
 /**
  * Phase 8.1: Shared Policy & Budget Service Singleton Wiring
@@ -26,7 +28,7 @@ import { CeloSettlementReceiptVerifier } from '../celo/settlement-verifier';
 
 declare global {
   // eslint-disable-next-line no-var
-  var __celoBudgetStore: InMemoryBudgetStore | undefined;
+  var __celoBudgetStore: (InMemoryBudgetStore | PostgresBudgetStore) | undefined;
   // eslint-disable-next-line no-var
   var __celoPolicyEnforcementService: PolicyEnforcementService | undefined;
 }
@@ -35,9 +37,12 @@ declare global {
  * Returns the singleton InMemoryBudgetStore instance.
  * Preserves the instance across development hot-reloads via globalThis.
  */
-export function getBudgetStore(): InMemoryBudgetStore {
+export function getBudgetStore(): InMemoryBudgetStore | PostgresBudgetStore {
+  assertDurableStorageConfigured();
   if (!globalThis.__celoBudgetStore) {
-    globalThis.__celoBudgetStore = new InMemoryBudgetStore();
+    globalThis.__celoBudgetStore = isDatabaseConfigured()
+      ? new PostgresBudgetStore()
+      : new InMemoryBudgetStore();
   }
   return globalThis.__celoBudgetStore;
 }

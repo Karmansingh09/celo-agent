@@ -1,6 +1,9 @@
 import 'server-only';
 import { InMemoryAgentStore } from './in-memory-agent-store';
+import { PostgresAgentStore } from './postgres-agent-store';
 import { AgentService } from './service';
+import { assertDurableStorageConfigured, isDatabaseConfigured } from '../db/postgres';
+import { getAuditEventStore } from '../audit';
 
 /**
  * Phase 7.5.1: Shared Agent Service Singleton Wiring
@@ -24,7 +27,7 @@ import { AgentService } from './service';
 
 declare global {
   // eslint-disable-next-line no-var
-  var __celoAgentStore: InMemoryAgentStore | undefined;
+  var __celoAgentStore: (InMemoryAgentStore | PostgresAgentStore) | undefined;
   // eslint-disable-next-line no-var
   var __celoAgentService: AgentService | undefined;
 }
@@ -33,9 +36,12 @@ declare global {
  * Returns the singleton InMemoryAgentStore instance.
  * Preserves the instance across development hot-reloads via globalThis.
  */
-export function getAgentStore(): InMemoryAgentStore {
+export function getAgentStore(): InMemoryAgentStore | PostgresAgentStore {
+  assertDurableStorageConfigured();
   if (!globalThis.__celoAgentStore) {
-    globalThis.__celoAgentStore = new InMemoryAgentStore();
+    globalThis.__celoAgentStore = isDatabaseConfigured()
+      ? new PostgresAgentStore()
+      : new InMemoryAgentStore();
   }
   return globalThis.__celoAgentStore;
 }
@@ -46,7 +52,7 @@ export function getAgentStore(): InMemoryAgentStore {
  */
 export function getAgentService(): AgentService {
   if (!globalThis.__celoAgentService) {
-    globalThis.__celoAgentService = new AgentService(getAgentStore());
+    globalThis.__celoAgentService = new AgentService(getAgentStore(), () => Date.now(), getAuditEventStore());
   }
   return globalThis.__celoAgentService;
 }

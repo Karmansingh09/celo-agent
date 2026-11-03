@@ -1,8 +1,11 @@
 import 'server-only';
 import { InMemoryPendingApprovalStore, IPendingApprovalStore } from './pending-approval-store';
+import { PostgresPendingApprovalStore } from './postgres-pending-approval-store';
 import { AgentPaymentService } from './service';
 import { getAgentService } from '../agent/instance';
 import { getPolicyEnforcementService } from '../policy/instance';
+import { assertDurableStorageConfigured, isDatabaseConfigured } from '../db/postgres';
+import { getAuditEventStore } from '../audit';
 
 /**
  * Phase 8.4: Shared Agent Payment Service Singleton Wiring
@@ -35,8 +38,11 @@ declare global {
  * Preserves the instance across development hot-reloads via globalThis.
  */
 export function getPendingApprovalStore(): IPendingApprovalStore {
+  assertDurableStorageConfigured();
   if (!globalThis.__celoPendingApprovalStore) {
-    globalThis.__celoPendingApprovalStore = new InMemoryPendingApprovalStore();
+    globalThis.__celoPendingApprovalStore = isDatabaseConfigured()
+      ? new PostgresPendingApprovalStore()
+      : new InMemoryPendingApprovalStore();
   }
   return globalThis.__celoPendingApprovalStore;
 }
@@ -51,7 +57,11 @@ export function getAgentPaymentService(): AgentPaymentService {
     globalThis.__celoAgentPaymentService = new AgentPaymentService(
       getAgentService(),
       getPolicyEnforcementService(),
-      getPendingApprovalStore()
+      getPendingApprovalStore(),
+      () => Date.now(),
+      86_400_000,
+      undefined,
+      getAuditEventStore()
     );
   }
   return globalThis.__celoAgentPaymentService;

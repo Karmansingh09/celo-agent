@@ -1,5 +1,7 @@
 import 'server-only';
 import { executePayment } from '../celo/payment';
+import { getAgentSignerProvider } from '../signer';
+import { AgentSignerProvider } from '../signer';
 import {
   IPaymentExecutor,
   PaymentExecutionRequest,
@@ -24,6 +26,8 @@ import {
  * - If an ambiguous timeout or unknown error occurs, returns 'UNCERTAIN'.
  */
 export class CeloPaymentExecutor implements IPaymentExecutor {
+  constructor(private readonly signerProvider: AgentSignerProvider = getAgentSignerProvider()) {}
+
   public async execute(request: PaymentExecutionRequest): Promise<PaymentExecutionResult> {
     // 1. Verify asset kind
     if (request.asset.kind !== 'NATIVE_CELO') {
@@ -33,6 +37,17 @@ export class CeloPaymentExecutor implements IPaymentExecutor {
     }
 
     try {
+      if (!request.executionWalletAddress) {
+        return {
+          success: false,
+          status: 'FAILED',
+          error: 'Agent wallet not configured: execution wallet is not bound to this agent',
+        };
+      }
+      const signer = await this.signerProvider.resolve({
+        agentId: request.agentId,
+        walletAddress: request.executionWalletAddress,
+      });
       const celoResult = await executePayment(
         {
           to: request.recipient,
@@ -40,7 +55,8 @@ export class CeloPaymentExecutor implements IPaymentExecutor {
           purpose: request.purpose,
           idempotencyKey: request.idempotencyKey,
         },
-        request.asset.network
+        request.asset.network,
+        signer
       );
 
       if (celoResult.success && celoResult.txHash) {

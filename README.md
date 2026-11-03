@@ -65,16 +65,15 @@ To maintain focus and avoid scope creep, CeloAgent is **NOT** currently:
 
 ---
 
-## 🛡️ Security Model & Interim Policy Enforcement
+## 🛡️ Security Model & Policy Enforcement
 
-> [!IMPORTANT]
-> **Interim Policy Engine Notice**:
-> In the current MVP, spending policy evaluation is **server-enforced**. 
-> - The MVP policy engine is **not** cryptographically enforced on-chain.
-> - The MVP is **not** non-custodial or resistant to a fully compromised application backend.
-> - Private keys are protected server-side via `import 'server-only'` boundaries and environment variables (`AGENT_PRIVATE_KEY`), but full backend compromise could bypass server-level policies.
-> 
-> Future roadmap phases (Phase 7) include research into smart accounts, session keys, and delegated authorization (ERC-7715 patterns) to push policy enforcement directly to the Celo smart contract layer.
+Policy evaluation and reservation accounting are server-enforced. The controlled
+payment path resolves a signer by `agentId` and the persisted execution wallet
+address; it does not use a shared global signer. The default signer provider fails
+closed until an operator wires an approved HSM/KMS or smart-account integration.
+
+The application is not resistant to a fully compromised backend. A future smart
+account/session-key integration can move additional policy guarantees on-chain.
 
 ---
 
@@ -99,11 +98,45 @@ Configure `.env.local`:
 CELO_NETWORK=sepolia
 CELO_SEPOLIA_RPC_URL=https://forno.celo-sepolia.celo-testnet.org
 CELO_MAX_PAYMENT=0.01
-AGENT_PRIVATE_KEY=0x... # (Optional: 64-hex char private key for testnet agent wallet)
+AGENT_SIGNER_PROVIDER=external-kms
+AGENT_SIGNER_ENDPOINT=
+DATABASE_URL=postgresql://user:password@localhost:5432/celoagent
+DATABASE_SSL=require
+DATABASE_SSL_REJECT_UNAUTHORIZED=true
+DATABASE_POOL_MAX=10
 ```
 
 > [!CAUTION]
-> Never commit `.env` or `.env.local` to Git repository control. Keep private keys strictly in server environment variables or KMS.
+> Never commit `.env` or `.env.local` to Git repository control. Private keys must remain inside the external signer boundary; CeloAgent source and database records store signer references and wallet addresses, never private key material.
+
+### PostgreSQL setup
+
+PostgreSQL is the durable production store. Create an empty database, set
+`DATABASE_URL`, then apply the schema:
+
+```bash
+npm run db:migrate
+```
+
+When `DATABASE_URL` is set, agents, policy versions, budgets, reservations,
+approvals, authentication nonces/sessions, and audit events use PostgreSQL.
+Production startup fails closed if `DATABASE_URL` is missing. Without it,
+development and unit tests use the explicit in-memory adapters.
+
+The budget store acquires a row lock for each agent/day window and performs
+reservation, commit, and release changes in one SQL transaction. Reservation
+idempotency is database-scoped, so separate application instances cannot
+overspend the same budget through a process-local race.
+
+### Signer integration boundary
+
+At server startup, configure an `AgentSignerProvider` through
+`configureAgentSignerProvider`. The provider must resolve an agent-specific
+signer from an HSM/KMS, vault, or approved smart-account service and return a
+viem account/wallet client without exposing key material to frontend code or
+storing it in PostgreSQL. Each resolution is checked against the agent ID and
+persisted `walletAddress`. The repository includes a fail-closed default and a
+static provider for controlled integration tests.
 
 ---
 
@@ -141,8 +174,9 @@ curl http://localhost:3000/api/health/celo
 
 CeloAgent is currently in active MVP development:
 - **Architecture & Scaffolding**: Master specifications, SIWE-based control plane routing, and Celo health monitoring are established.
-- **Payment Execution**: Payment execution is **not yet a completed cUSD transfer flow**. The current testnet execution rail performs baseline native CELO transfers on Celo Sepolia; full cUSD ERC-20 transfer integration and settlement remain in progress.
-- **Roadmap Progress**: Baseline blockchain infrastructure and payment prototypes are complete (Phases 1–4), with comprehensive policy engine rules and dashboard UI controls underway.
+- **Payment Execution**: The controlled rail supports actual cUSD ERC-20 execution on Celo Sepolia after an approved signer provider is configured. Settlement is only committed after independent receipt and `Transfer` event verification.
+- **Durable State**: PostgreSQL persistence is available and required for production startup. Migration `db/migrations/001_initial.sql` defines the durable domain, authentication, execution, and append-only audit tables.
+- **Recovery**: Uncertain reservations remain held for reconciliation; an automated reconciliation worker is a subsequent milestone.
 
 ---
 

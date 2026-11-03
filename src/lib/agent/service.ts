@@ -18,6 +18,7 @@ import {
   normalizeAgentOperationKey,
   withAgentOperationLock,
 } from './operation-lock';
+import { AuditEvent, IAuditEventStore } from '../audit';
 
 export type AgentTerminationCleanup = (agent: Agent, reason: string) => Promise<unknown>;
 
@@ -89,8 +90,14 @@ export class AgentService {
 
   constructor(
     private readonly store: IAgentStore,
-    private readonly clock: () => number = () => Date.now()
+    private readonly clock: () => number = () => Date.now(),
+    private readonly auditStore?: IAuditEventStore
   ) {}
+
+  private async recordAudit(event: Omit<AuditEvent, 'createdAt'> & { createdAt?: number }): Promise<void> {
+    if (!this.auditStore) return;
+    await this.auditStore.append({ ...event, createdAt: event.createdAt ?? this.clock(), details: event.details || {} });
+  }
 
   /**
    * Registers the payment-domain cleanup callback used by the shared service
@@ -212,7 +219,15 @@ export class AgentService {
       updatedAt: nowMs,
     };
 
-    return this.store.createAgent(agentRecord);
+    const created = await this.store.createAgent(agentRecord);
+    await this.recordAudit({
+      eventType: 'AGENT_CREATED',
+      actorAddress: normalizedOwner,
+      agentId: created.id,
+      details: { policyId: created.spendingPolicy.policyId, walletAddress: created.walletAddress || null },
+      createdAt: nowMs,
+    });
+    return created;
   }
 
   /**
@@ -353,7 +368,18 @@ export class AgentService {
       spendingPolicy: boundPolicy,
     };
 
-    return this.store.updateAgent(existing.id, patch);
+    const updated = await this.store.updateAgent(existing.id, patch);
+    await this.recordAudit({
+      eventType: input.spendingPolicy ? 'POLICY_UPDATED' : 'AGENT_UPDATED',
+      actorAddress: normalizedOwner,
+      agentId: updated.id,
+      details: {
+        policyId: updated.spendingPolicy.policyId,
+        walletAddress: updated.walletAddress || null,
+      },
+      createdAt: trustedNow,
+    });
+    return updated;
   }
 
   /**
@@ -392,10 +418,18 @@ export class AgentService {
 
     this.getTrustedTimestamp(existing.updatedAt);
 
-    return this.store.updateAgent(existing.id, {
+    const paused = await this.store.updateAgent(existing.id, {
       status: 'PAUSED',
       statusReason: validatedReason,
     });
+    await this.recordAudit({
+      eventType: 'AGENT_PAUSED',
+      actorAddress: normalizedOwner,
+      agentId: paused.id,
+      details: { reason: validatedReason || null },
+      createdAt: paused.updatedAt,
+    });
+    return paused;
   }
 
   /**
@@ -435,10 +469,18 @@ export class AgentService {
 
     this.getTrustedTimestamp(existing.updatedAt);
 
-    return this.store.updateAgent(existing.id, {
+    const resumed = await this.store.updateAgent(existing.id, {
       status: 'ACTIVE',
       statusReason: validatedReason,
     });
+    await this.recordAudit({
+      eventType: 'AGENT_RESUMED',
+      actorAddress: normalizedOwner,
+      agentId: resumed.id,
+      details: { reason: validatedReason || null },
+      createdAt: resumed.updatedAt,
+    });
+    return resumed;
   }
 
   /**
@@ -484,6 +526,13 @@ export class AgentService {
         existing,
         existing.statusReason || validatedReason || 'Agent permanently terminated'
       );
+      await this.recordAudit({
+        eventType: 'AGENT_TERMINATED',
+        actorAddress: normalizedOwner,
+        agentId: existing.id,
+        details: { reason: existing.statusReason || validatedReason || 'Agent permanently terminated', retry: true },
+        createdAt: existing.updatedAt,
+      });
       return existing;
     }
 
@@ -500,6 +549,14 @@ export class AgentService {
       terminated,
       terminated.statusReason || validatedReason || 'Agent permanently terminated'
     );
+
+    await this.recordAudit({
+      eventType: 'AGENT_TERMINATED',
+      actorAddress: normalizedOwner,
+      agentId: terminated.id,
+      details: { reason: terminated.statusReason || validatedReason || 'Agent permanently terminated' },
+      createdAt: terminated.updatedAt,
+    });
 
     return terminated;
   }

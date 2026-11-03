@@ -4,6 +4,7 @@ import { getMaxPaymentLimit, getExplorerTxUrl } from './config';
 import { getPublicClient } from './public-client';
 import { getAgentAccount, isAgentConfigured } from './account';
 import { getAgentWalletClient } from './wallet-client';
+import { AgentSigner } from '../signer';
 
 export interface PaymentRequest {
   to: string;
@@ -122,8 +123,17 @@ export function validatePaymentRequest(request: PaymentRequest): ValidationResul
  */
 export async function executePayment(
   request: PaymentRequest,
-  network?: string
+  network?: string,
+  signer?: AgentSigner
 ): Promise<PaymentResult> {
+  if (!signer && process.env.NODE_ENV === 'production') {
+    return {
+      success: false,
+      status: 'failed',
+      error: 'Production execution requires an agent-specific external signer provider',
+    };
+  }
+
   // 1. Validate request payload and policy
   const validation = validatePaymentRequest(request);
   if (!validation.valid || !validation.recipient || !validation.amountWei) {
@@ -135,7 +145,7 @@ export async function executePayment(
   }
 
   // 2. Resolve Agent Account
-  if (!isAgentConfigured()) {
+  if (!signer && !isAgentConfigured()) {
     return {
       success: false,
       status: 'failed',
@@ -143,7 +153,7 @@ export async function executePayment(
     };
   }
 
-  const account = getAgentAccount();
+  const account = signer?.account || getAgentAccount();
   if (!account) {
     return {
       success: false,
@@ -152,7 +162,7 @@ export async function executePayment(
     };
   }
 
-  const walletClient = getAgentWalletClient(network);
+  const walletClient = signer?.getWalletClient(network === 'mainnet' ? 'mainnet' : 'sepolia') || getAgentWalletClient(network);
   if (!walletClient) {
     return {
       success: false,

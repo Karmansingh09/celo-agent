@@ -43,6 +43,7 @@ import {
   ExecutionInProgressError,
 } from './execution-types';
 import { CeloPaymentRailExecutor } from './rail-execution';
+import { AuditEvent, IAuditEventStore } from '../audit';
 
 type UnresolvedApprovalIdentity = Pick<
   PendingApproval,
@@ -84,12 +85,18 @@ export class AgentPaymentService {
     private readonly pendingApprovalStore: IPendingApprovalStore,
     private readonly clock: () => number = () => Date.now(),
     private readonly approvalTtlMs: number = 86_400_000, // 24 hours default
-    paymentExecutor?: IPaymentExecutor
+    paymentExecutor?: IPaymentExecutor,
+    private readonly auditStore?: IAuditEventStore
   ) {
-    this.paymentExecutor = paymentExecutor || new CeloPaymentRailExecutor();
+    this.paymentExecutor = paymentExecutor || CeloPaymentRailExecutor.withSignerProvider();
     this.agentService.setTerminationCleanupHandler((agent, reason) =>
       this.cancelPendingApprovalsForAgentInternal(agent.id, reason)
     );
+  }
+
+  private async recordAudit(event: Omit<AuditEvent, 'createdAt'> & { createdAt?: number }): Promise<void> {
+    if (!this.auditStore) return;
+    await this.auditStore.append({ ...event, createdAt: event.createdAt ?? this.clock(), details: event.details || {} });
   }
 
   /**
@@ -267,6 +274,19 @@ export class AgentPaymentService {
     // 6. Handle Enforcement Outcome
     if (enforceResult.outcome === 'RESERVED') {
       const canonicalRequestId = enforceResult.reservation?.requestId || requestId;
+      await this.recordAudit({
+        eventType: 'PAYMENT_AUTHORIZED',
+        actorAddress: agent.ownerAddress,
+        agentId: agent.id,
+        requestId: canonicalRequestId,
+        reservationId: enforceResult.reservation?.id,
+        details: {
+          amountCusd: rawAmountCusd,
+          recipient: normalizedRecipient,
+          policyId: activePolicyId,
+        },
+        createdAt: nowMs,
+      });
       return {
         success: true,
         allowedToExecute: true,
@@ -298,6 +318,18 @@ export class AgentPaymentService {
       };
 
       const createdApproval = await this.pendingApprovalStore.create(pendingApprovalRecord);
+      await this.recordAudit({
+        eventType: 'APPROVAL_REQUESTED',
+        actorAddress: agent.ownerAddress,
+        agentId: agent.id,
+        requestId: createdApproval.requestId,
+        details: {
+          amountCusd: rawAmountCusd,
+          recipient: normalizedRecipient,
+          policyId: activePolicyId,
+        },
+        createdAt: nowMs,
+      });
 
       return {
         success: true,
@@ -630,6 +662,20 @@ export class AgentPaymentService {
         throw err;
       }
 
+      await this.recordAudit({
+        eventType: 'APPROVAL_APPROVED',
+        actorAddress: agent.ownerAddress,
+        agentId: agent.id,
+        requestId: pending.requestId,
+        reservationId: enforceResult.reservation?.id,
+        details: {
+          policyId: activePolicyId,
+          amountCusd: pending.amountCusd,
+          recipient: pending.recipient,
+        },
+        createdAt: nowMs,
+      });
+
       // 10. Return reservation result
       return {
         success: true,
@@ -694,7 +740,7 @@ export class AgentPaymentService {
     }
 
     // 4. Transition status PENDING -> REJECTED
-    return this.pendingApprovalStore.transitionStatus(
+    const rejected = await this.pendingApprovalStore.transitionStatus(
       pending.requestId,
       'PENDING',
       'REJECTED',
@@ -703,6 +749,15 @@ export class AgentPaymentService {
         resolvedAt: nowMs,
       }
     );
+    await this.recordAudit({
+      eventType: 'APPROVAL_REJECTED',
+      actorAddress: agent.ownerAddress,
+      agentId: agent.id,
+      requestId: pending.requestId,
+      details: { reason: reason || 'Rejected by authenticated owner' },
+      createdAt: nowMs,
+    });
+    return rejected;
   }
 
   /**
@@ -1149,6 +1204,7 @@ export class AgentPaymentService {
       const execResult = await this.paymentExecutor.execute({
         reservationId,
         agentId: agent.id,
+        executionWalletAddress: agent.walletAddress,
         recipient: reservation.recipient,
         asset,
         amount: executionAmount.trim(),
@@ -1165,6 +1221,20 @@ export class AgentPaymentService {
           execResult.txHash
         );
 
+        await this.recordAudit({
+          eventType: 'TRANSACTION_BROADCAST',
+          actorAddress: agent.ownerAddress,
+          agentId: agent.id,
+          requestId: reservation.requestId,
+          reservationId,
+          txHash: execResult.txHash,
+          details: {
+            asset: asset.kind,
+            network: asset.network || null,
+            walletAddress: agent.walletAddress || null,
+          },
+        });
+
         return {
           success: true,
           status: 'SUBMITTED',
@@ -1180,6 +1250,16 @@ export class AgentPaymentService {
           execResult.txHash
         );
 
+        await this.recordAudit({
+          eventType: 'TRANSACTION_UNCERTAIN',
+          actorAddress: agent.ownerAddress,
+          agentId: agent.id,
+          requestId: reservation.requestId,
+          reservationId,
+          txHash: execResult.txHash,
+          details: { error: execResult.error || 'Execution status uncertain / network timeout' },
+        });
+
         return {
           success: false,
           status: 'UNCERTAIN',
@@ -1194,6 +1274,15 @@ export class AgentPaymentService {
           reservationId,
           execResult.error || 'Payment execution failed'
         );
+
+        await this.recordAudit({
+          eventType: 'TRANSACTION_FAILED',
+          actorAddress: agent.ownerAddress,
+          agentId: agent.id,
+          requestId: reservation.requestId,
+          reservationId,
+          details: { error: execResult.error || 'Payment execution failed' },
+        });
 
         return {
           success: false,
@@ -1221,6 +1310,15 @@ export class AgentPaymentService {
             : errMsg,
           broadcastedTxHash
         );
+        await this.recordAudit({
+          eventType: 'TRANSACTION_UNCERTAIN',
+          actorAddress: agent.ownerAddress,
+          agentId: agent.id,
+          requestId: reservation.requestId,
+          reservationId,
+          txHash: broadcastedTxHash,
+          details: { error: errMsg },
+        });
         return {
           success: false,
           status: 'UNCERTAIN',
@@ -1233,6 +1331,14 @@ export class AgentPaymentService {
           reservationId,
           errMsg
         );
+        await this.recordAudit({
+          eventType: 'TRANSACTION_FAILED',
+          actorAddress: agent.ownerAddress,
+          agentId: agent.id,
+          requestId: reservation.requestId,
+          reservationId,
+          details: { error: errMsg },
+        });
         return {
           success: false,
           status: 'FAILED',
@@ -1284,7 +1390,18 @@ export class AgentPaymentService {
       );
     }
 
-    return this.policyEnforcementService.confirmSettlement(reservationId, confirmation);
+    const committed = await this.policyEnforcementService.confirmSettlement(reservationId, confirmation);
+    await this.recordAudit({
+      eventType: 'SETTLEMENT_VERIFIED',
+      actorAddress: agent.ownerAddress,
+      agentId: agent.id,
+      requestId: reservation.requestId,
+      reservationId,
+      txHash: confirmation.txHash,
+      details: { status: committed.status, attestedBy: confirmation.attestedBy || null },
+      createdAt: confirmation.confirmedAt,
+    });
+    return committed;
   }
 
   /**
