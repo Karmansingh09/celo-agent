@@ -60,8 +60,8 @@ export interface PendingApproval {
   readonly recipient: string;
   /** Client-provided idempotency key */
   readonly idempotencyKey: string;
-  /** Active policy ID under which the request was evaluated */
-  readonly policyId?: string;
+  /** Required server-managed policy version under which the request was evaluated */
+  readonly policyId: string;
   /** Timestamp when pending approval was recorded (Unix ms) */
   readonly createdAt: number;
   /** Timestamp until which this approval remains actionable (Unix ms) */
@@ -92,8 +92,6 @@ export interface AgentPaymentRequest {
   recipient: string;
   /** Unique client idempotency key (scoped per agentId) */
   idempotencyKey: string;
-  /** Optional policy identifier associated with the request */
-  policyId?: string;
   /** Optional human-readable purpose description */
   purpose?: string;
 }

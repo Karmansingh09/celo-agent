@@ -152,7 +152,8 @@ describe('Phase 7.1: Agent Domain Model & Lifecycle Types', () => {
 
       expect(bound.agentId).toBe(resolvedId);
       expect(bound.maxPerTransaction).toBe('0.10');
-      expect(bound.policyId).toBe('policy-v1-custom');
+      expect(bound.policyId).toMatch(/^policy_[a-z0-9]+_[a-f0-9]{16}$/);
+      expect(bound.policyId).not.toBe('policy-v1-custom');
       // Ensure caller object was NOT mutated
       expect(policyInput.agentId).toBeUndefined();
     });

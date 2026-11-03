@@ -270,6 +270,16 @@ export class AgentService {
     agentId: string,
     input: UpdateAgentServiceInput
   ): Promise<Agent> {
+    return withAgentOperationLock(normalizeAgentOperationKey(agentId), () =>
+      this.updateAgentInternal(authenticatedOwnerAddress, agentId, input)
+    );
+  }
+
+  private async updateAgentInternal(
+    authenticatedOwnerAddress: string,
+    agentId: string,
+    input: UpdateAgentServiceInput
+  ): Promise<Agent> {
     const normalizedOwner = normalizeOwnerAddress(authenticatedOwnerAddress);
 
     if (typeof agentId !== 'string' || agentId.trim() === '') {

@@ -1,4 +1,5 @@
 import { parseUnits } from 'viem';
+import { randomBytes } from 'crypto';
 
 /**
  * Phase 5.1: Policy Data Model
@@ -22,12 +23,27 @@ export type PolicyDecision = 'ALLOW' | 'REQUIRE_USER_APPROVAL' | 'DENY';
 export const MAX_CUSD_DECIMAL_PLACES = 18;
 
 /**
+ * Creates an opaque server-owned identity for one policy version.
+ *
+ * The timestamp makes the value operationally traceable while random bytes
+ * prevent callers from predicting or selecting the authoritative identity.
+ */
+export function generatePolicyVersionId(trustedNow: number = Date.now()): string {
+  if (!Number.isSafeInteger(trustedNow) || trustedNow <= 0) {
+    throw new RangeError(`trustedNow must be a positive safe integer timestamp: ${trustedNow}`);
+  }
+  return `policy_${trustedNow.toString(36)}_${randomBytes(8).toString('hex')}`;
+}
+
+/**
  * Definition of an Agent Spending Policy.
  * Establishes the financial boundaries and recipient permissions for an autonomous AI agent.
  */
 export interface AgentSpendingPolicy {
   /** Unique identifier for the AI agent */
   agentId: string;
+  /** Server-managed policy version identity when attached to an agent. */
+  policyId?: string;
   /** Maximum cUSD allowed for a single transaction (decimal string e.g., "0.10") */
   maxPerTransaction: string;
   /** Maximum total cUSD allowed per day/window (decimal string e.g., "0.50") */
@@ -168,6 +184,10 @@ export function validatePolicyForStorage(
   }
 
   const p = policy as AgentSpendingPolicy;
+  const policyRecord = policy as unknown as Record<string, unknown>;
+  if (typeof policyRecord.policyId !== 'string' || policyRecord.policyId.trim() === '') {
+    return { valid: false, error: 'policyId must be a non-empty server-managed policy version identity' };
+  }
   if (p.validUntil <= trustedNow) {
     return { valid: false, error: 'validUntil must be in the future' };
   }

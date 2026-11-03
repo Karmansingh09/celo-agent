@@ -177,12 +177,19 @@ export class AgentPaymentService {
       throw new AgentTerminatedError(agent.id, 'Cannot request payment for a terminated agent');
     }
 
+    const activePolicyId = agent.spendingPolicy.policyId;
+    if (typeof activePolicyId !== 'string' || activePolicyId.trim() === '') {
+      throw new InvalidPaymentInputError(
+        'Agent spending policy is missing its server-managed policy version'
+      );
+    }
+
     // 4. Idempotency Check against Pending Approval Store
     const existingPending = await this.pendingApprovalStore.getByIdempotencyKey(agent.id, idempotencyKey);
     if (existingPending) {
       const amountMatches = this.sameCusdAmount(existingPending.amountCusd, rawAmountCusd);
       const recipientMatches = existingPending.recipient.toLowerCase() === normalizedRecipient.toLowerCase();
-      const policyMatches = existingPending.policyId === (request.policyId || agent.spendingPolicy.id || agent.spendingPolicy.policyId);
+      const policyMatches = existingPending.policyId === activePolicyId;
 
       if (!amountMatches || !recipientMatches || !policyMatches) {
         return {
@@ -249,7 +256,7 @@ export class AgentPaymentService {
       amountCusd: rawAmountCusd,
       recipient: normalizedRecipient,
       idempotencyKey,
-      policyId: request.policyId || agent.spendingPolicy.id || agent.spendingPolicy.policyId,
+      policyId: activePolicyId,
     };
 
     const enforceResult = await this.policyEnforcementService.enforcePayment(
@@ -284,7 +291,7 @@ export class AgentPaymentService {
         amountCusd: rawAmountCusd,
         recipient: normalizedRecipient,
         idempotencyKey,
-        policyId: request.policyId || agent.spendingPolicy.id || agent.spendingPolicy.policyId,
+        policyId: activePolicyId,
         createdAt: nowMs,
         validUntil: nowMs + this.approvalTtlMs,
         status: 'PENDING',
@@ -488,6 +495,13 @@ export class AgentPaymentService {
         throw new AgentTerminatedError(agent.id, 'Cannot approve payment for a terminated agent');
       }
 
+      const activePolicyId = agent.spendingPolicy.policyId;
+      if (typeof activePolicyId !== 'string' || activePolicyId.trim() === '') {
+        throw new InvalidPaymentInputError(
+          'Agent spending policy is missing its server-managed policy version'
+        );
+      }
+
       // 3 & 4. Load and verify pending approval
       const pending = await this.pendingApprovalStore.getByRequestId(requestId);
       if (!pending || pending.agentId !== agent.id) {
@@ -500,6 +514,23 @@ export class AgentPaymentService {
           pending.requestId,
           pending.status,
           `Cannot approve request ${pending.requestId}: approval is already ${pending.status}`
+        );
+      }
+
+      if (pending.policyId !== activePolicyId) {
+        const invalidated = await this.pendingApprovalStore.transitionStatus(
+          pending.requestId,
+          'PENDING',
+          'EXPIRED',
+          {
+            statusReason: 'Spending policy version changed after this approval was created',
+            resolvedAt: nowMs,
+          }
+        );
+        throw new PendingApprovalStateError(
+          invalidated.requestId,
+          invalidated.status,
+          `Cannot approve request ${pending.requestId}: approval is bound to stale policy version ${pending.policyId}`
         );
       }
 
@@ -519,7 +550,7 @@ export class AgentPaymentService {
         amountCusd: pending.amountCusd,
         recipient: pending.recipient,
         idempotencyKey: pending.idempotencyKey,
-        policyId: pending.policyId || agent.spendingPolicy.id || agent.spendingPolicy.policyId,
+        policyId: activePolicyId,
         approvedAt: nowMs,
         validUntil: pending.validUntil,
       };
@@ -531,7 +562,7 @@ export class AgentPaymentService {
         amountCusd: pending.amountCusd,
         recipient: pending.recipient,
         idempotencyKey: pending.idempotencyKey,
-        policyId: pending.policyId || agent.spendingPolicy.id || agent.spendingPolicy.policyId,
+        policyId: activePolicyId,
         approval: boundApproval,
       };
 

@@ -275,6 +275,28 @@ describe('Phase 8.4: Controlled Payment & Approval API Layer', () => {
       expect(json.error).toMatch(/Unexpected or forbidden field: "ownerAddress"/);
     });
 
+    it('11a. Client-supplied policyId is rejected because policy identity is server-managed', async () => {
+      const req = new Request(`http://localhost:3000/api/agents/${agentAId}/payments`, {
+        method: 'POST',
+        headers: {
+          cookie: cookieA,
+          origin: expectedOrigin,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          amountCusd: '0.50',
+          recipient: validRecipient,
+          idempotencyKey: 'pay-policy-override-1',
+          policyId: 'attacker-selected-policy',
+        }),
+      });
+
+      const res = await createPaymentRoute(req, { params: { id: agentAId } });
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toMatch(/Unexpected or forbidden field: "policyId"/);
+    });
+
     it('12. Invalid amount format is rejected with 400', async () => {
       const req = new Request(`http://localhost:3000/api/agents/${agentAId}/payments`, {
         method: 'POST',
@@ -842,6 +864,7 @@ describe('Phase 8.4: Controlled Payment & Approval API Layer', () => {
         amountCusd: '2.00',
         recipient: validRecipient,
         idempotencyKey: 'expired-key-1',
+        policyId: 'policy-test-expired',
         createdAt: Date.now() - 100_000,
         validUntil: Date.now() - 10_000, // in the past
         status: 'PENDING',

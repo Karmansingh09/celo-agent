@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto';
 import { isAddress, getAddress } from 'viem';
 import {
   AgentSpendingPolicy,
+  generatePolicyVersionId,
   validatePolicyForStorage,
   validatePolicyStructure,
 } from '../policy/types';
@@ -26,7 +27,8 @@ export type AgentStatus = 'ACTIVE' | 'PAUSED' | 'TERMINATED';
  * Compatible with AgentSpendingPolicy while preserving optional policyId/id identity metadata.
  */
 export type BoundAgentSpendingPolicy = AgentSpendingPolicy & {
-  policyId?: string;
+  /** Server-generated identity for the active policy version. */
+  policyId: string;
   id?: string;
 };
 
@@ -68,9 +70,9 @@ export type CreateAgentSpendingPolicyInput = Omit<AgentSpendingPolicy, 'agentId'
    * If omitted, it will be automatically bound to the resolved agent ID.
    */
   agentId?: string;
-  /** Optional policy identity or version tag */
+  /** Legacy client-supplied policy identity; ignored by the server. */
   policyId?: string;
-  /** Optional alternate ID representation */
+  /** Legacy alternate identity; ignored by the server. */
   id?: string;
 };
 
@@ -279,7 +281,7 @@ export function assertValidStateTransition(current: AgentStatus, next: AgentStat
  * - Validates policy structure using validatePolicyStructure.
  * - If policyInput.agentId is provided, asserts that it matches resolvedAgentId (rejects conflicts).
  * - Binds resolvedAgentId to the returned policy.
- * - Preserves policyId, id, and all other valid policy fields.
+ * - Replaces any client-supplied policy identity with a fresh server-managed version ID.
  * 
  * @returns Fully bound, typed AgentSpendingPolicy
  * @throws InvalidAgentInputError if policy structure is invalid or agentId conflicts
@@ -303,10 +305,18 @@ export function resolveAndBindAgentPolicy(
     );
   }
 
-  // Create bound policy without mutating original policyInput
+  // Strip client-controlled identity fields before binding a new server version.
+  const {
+    policyId: _ignoredPolicyId,
+    id: _ignoredAlternateId,
+    agentId: _ignoredAgentId,
+    ...policyFields
+  } = policyInput;
+
   const boundPolicy: AgentSpendingPolicy = {
-    ...policyInput,
+    ...policyFields,
     agentId: resolvedAgentId,
+    policyId: generatePolicyVersionId(trustedNow),
   };
 
   const validation = validatePolicyForStorage(boundPolicy, trustedNow);

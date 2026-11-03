@@ -30,7 +30,6 @@ const ALLOWED_PAYMENT_KEYS = new Set([
   'amountCusd',
   'recipient',
   'idempotencyKey',
-  'policyId',
   'purpose',
   'requestId',
 ]);
@@ -115,7 +114,6 @@ export async function POST(req: Request, context: RouteContext) {
       amountCusd: rawBody.amountCusd.trim(),
       recipient: rawBody.recipient.trim(),
       idempotencyKey: rawBody.idempotencyKey.trim(),
-      policyId: typeof rawBody.policyId === 'string' ? rawBody.policyId.trim() : undefined,
       purpose: typeof rawBody.purpose === 'string' ? rawBody.purpose.trim() : undefined,
       requestId: typeof rawBody.requestId === 'string' ? rawBody.requestId.trim() : undefined,
     };

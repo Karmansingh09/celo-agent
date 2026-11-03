@@ -247,6 +247,7 @@ describe('Phase 7.2: InMemoryAgentStore', () => {
           allowedRecipients: [validRecipient],
           autoApproveThreshold: '0.10',
           validUntil: baseTime + 100000,
+          policyId: 'policy-invalid-update',
         },
       };
 

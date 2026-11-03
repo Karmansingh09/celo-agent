@@ -443,7 +443,7 @@ describe('Phase 8.2: AgentPaymentService (Payment Orchestration & Approvals)', (
     expect(stored?.resolvedAt).toBeDefined();
   });
 
-  it('9. Approval fails if policy changed between request and approval, now denying', async () => {
+  it('9. Approval is invalidated if the policy version changes between request and approval', async () => {
     const agent = await createTestAgent();
 
     const request: AgentPaymentRequest = {
@@ -463,17 +463,15 @@ describe('Phase 8.2: AgentPaymentService (Payment Orchestration & Approvals)', (
       },
     });
 
-    // Approval attempted
-    const approveResult = await paymentService.approvePaymentRequest(ownerA, agent.id, reqResult.requestId);
+    // Approval attempted and safely rejected as stale.
+    await expect(
+      paymentService.approvePaymentRequest(ownerA, agent.id, reqResult.requestId)
+    ).rejects.toThrow('stale policy version');
 
-    expect(approveResult.success).toBe(false);
-    expect(approveResult.allowedToExecute).toBe(false);
-    expect(approveResult.outcome).toBe('POLICY_DENIED');
-    expect(approveResult.reason.toLowerCase()).toContain('per-transaction limit');
-
-    // Ensure pending approval was NOT marked APPROVED
+    // Ensure the stale pending approval was invalidated and never approved.
     const stored = await pendingApprovalStore.getByRequestId(reqResult.requestId);
-    expect(stored?.status).toBe('PENDING');
+    expect(stored?.status).toBe('EXPIRED');
+    expect(stored?.statusReason).toContain('policy version changed');
   });
 
   it('10. Approval fails if daily budget is no longer available at approval time', async () => {

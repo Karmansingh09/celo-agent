@@ -236,7 +236,8 @@ export class PolicyEnforcementService {
       }
     }
 
-    // 3. Policy Identifier Consistency Check (if defined on policy object)
+    // 3. Policy Identifier Consistency Check. A caller-supplied identifier is
+    // never authoritative; it must match the server-owned active identity.
     const policyRecord = policy as unknown as Record<string, unknown>;
     const policyIdOnPolicy =
       typeof policyRecord.id === 'string'
@@ -245,11 +246,13 @@ export class PolicyEnforcementService {
         ? policyRecord.policyId
         : undefined;
 
-    if (policyIdOnPolicy && request.policyId && policyIdOnPolicy !== request.policyId) {
+    if (request.policyId && (!policyIdOnPolicy || policyIdOnPolicy !== request.policyId)) {
       return {
         allowedToExecute: false,
         outcome: 'POLICY_DENIED',
-        reason: `Policy ID mismatch: requested with policy ID ${request.policyId}, but policy is ${policyIdOnPolicy}`,
+        reason: policyIdOnPolicy
+          ? `Policy ID mismatch: requested with policy ID ${request.policyId}, but policy is ${policyIdOnPolicy}`
+          : 'A request policy ID cannot establish policy authority when the active policy has no server-managed identity',
         policyEvaluation: {
           decision: 'DENY',
           reason: `Policy ID mismatch: requested with policy ID ${request.policyId}, but policy is ${policyIdOnPolicy}`,
@@ -277,6 +280,19 @@ export class PolicyEnforcementService {
         outcome: 'POLICY_DENIED',
         reason: policyEvaluation.reason,
         policyEvaluation,
+      };
+    }
+
+    if (policyEvaluation.decision === 'REQUIRE_USER_APPROVAL' && !policyIdOnPolicy) {
+      return {
+        allowedToExecute: false,
+        outcome: 'POLICY_DENIED',
+        reason: 'Active policy is missing its server-managed policy version identity',
+        policyEvaluation: {
+          ...policyEvaluation,
+          decision: 'DENY',
+          reason: 'Active policy is missing its server-managed policy version identity',
+        },
       };
     }
 
@@ -335,7 +351,7 @@ export class PolicyEnforcementService {
       }
 
       // e. Strict Policy ID Binding Check
-      const effectivePolicyId = policyIdOnPolicy || request.policyId;
+      const effectivePolicyId = policyIdOnPolicy;
       if (effectivePolicyId) {
         if (!request.approval.policyId || request.approval.policyId.trim() === '') {
           return {
@@ -394,7 +410,7 @@ export class PolicyEnforcementService {
     }
 
     // 8. Acquire Daily Budget Reservation
-    const effectivePolicyId = policyIdOnPolicy || request.policyId;
+    const effectivePolicyId = policyIdOnPolicy;
     const reservationRequest: ReservationRequest = {
       agentId: request.agentId,
       requestId: request.requestId,

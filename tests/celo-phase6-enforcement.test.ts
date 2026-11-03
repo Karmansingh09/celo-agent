@@ -25,6 +25,7 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
   // Baseline standard policy
   const defaultPolicy: AgentSpendingPolicy = {
     agentId,
+    policyId: 'policy-test-v1',
     maxPerTransaction: '0.25',     // 0.25 cUSD single tx ceiling
     maxPerDay: '1.00',             // 1.00 cUSD daily limit
     allowedRecipients: [recipientAuthorized],
@@ -100,6 +101,7 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
       amountCusd: '0.15',
       recipient: recipientAuthorized,
       idempotencyKey: 'req-approved-01',
+      policyId: 'policy-test-v1',
       approvedAt: baseTime - 1000,
       validUntil: baseTime + 60_000,
     };
@@ -109,6 +111,7 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
       amountCusd: '0.15',
       recipient: recipientAuthorized,
       idempotencyKey: 'req-approved-01',
+      policyId: 'policy-test-v1',
       approval,
     };
 
@@ -130,6 +133,7 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
       amountCusd: '0.15',
       recipient: recipientAuthorized,
       idempotencyKey: 'req-tamper-test',
+      policyId: 'policy-test-v1',
       approvedAt: baseTime - 1000,
       validUntil: baseTime + 60_000,
     };
@@ -247,6 +251,7 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
       amountCusd: '0.15',
       recipient: recipientAuthorized,
       idempotencyKey: 'approval-timestamp-boundary-001',
+      policyId: 'policy-test-v1',
       approvedAt: baseTime - 1,
       validUntil: baseTime + 1,
     };
@@ -689,7 +694,7 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
     expect(resMatching.outcome).toBe('RESERVED');
 
     // 4. Policy has NO identity, but approval specifies one -> REJECTED
-    const policyNoId: AgentSpendingPolicy = { ...defaultPolicy };
+    const policyNoId: AgentSpendingPolicy = { ...defaultPolicy, policyId: undefined };
     const resNoIdPolicyWithBoundApproval = await service.enforcePayment(policyNoId, {
       ...baseRequest,
       idempotencyKey: 'policy-no-id-key',
@@ -697,7 +702,7 @@ describe('Phase 6.3: PolicyEnforcementService', () => {
     });
     expect(resNoIdPolicyWithBoundApproval.allowedToExecute).toBe(false);
     expect(resNoIdPolicyWithBoundApproval.outcome).toBe('POLICY_DENIED');
-    expect(resNoIdPolicyWithBoundApproval.reason).toContain('active policy has no ID');
+    expect(resNoIdPolicyWithBoundApproval.reason).toContain('missing its server-managed policy version');
   });
 
   it('18. LIFECYCLE SAFETY: confirmSettlement handles duplicate calls idempotently, settles reconciled holds, and rejects released reservations', async () => {
